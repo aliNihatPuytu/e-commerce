@@ -1,0 +1,7 @@
+export default function Container({ children, className = "" }) {
+  return (
+    <div className={`mx-auto w-full max-w-[1050px] px-4 md:px-0 ${className}`}>
+      {children}
+    </div>
+  );
+}

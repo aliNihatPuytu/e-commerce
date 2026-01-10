@@ -1,0 +1,21 @@
+{
+  "hero": {
+    "title": "NEW COLLECTION",
+    "subtitle": "We know how large objects will act, but things on a small scale.",
+    "cta": "SHOP NOW",
+    "image": "/assets/images/unsplash_Bd7gNnWJBkU.jpg"
+  },
+  "brands": [
+    "/assets/images/fa-brands-1.png",
+    "/assets/images/fa-brands-2.png",
+    "/assets/images/fa-brands-3.png",
+    "/assets/images/fa-brands-4.png",
+    "/assets/images/fa-brands-5.png"
+  ],
+  "products": [
+    { "id": 1, "title": "Graphic Design", "category": "English Department", "price": 16.48, "discount": 6.48, "image": "/assets/images/unsplash_p0j-mE6mGo4.jpg" }
+  ],
+  "posts": [
+    { "id": 1, "title": "Graphic Design", "desc": "We focus on ergonomics and meeting you where you work.", "price": 16.48, "discount": 6.48, "image": "/assets/images/unsplash_MKvjc2kar7Q.jpg" }
+  ]
+}
