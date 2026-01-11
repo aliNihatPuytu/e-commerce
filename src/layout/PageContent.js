@@ -4,12 +4,12 @@ import Footer from "./Footer";
 
 export default function PageContent() {
   return (
-    <main className="flex min-h-screen w-full flex-col items-center bg-white">
+    <div className="flex min-h-screen w-full flex-col">
       <Header />
-      <section className="w-full flex-1 bg-white">
+      <main className="w-full flex-1">
         <Outlet />
-      </section>
+      </main>
       <Footer />
-    </main>
+    </div>
   );
 }

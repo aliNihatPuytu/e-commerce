@@ -1,21 +1,22 @@
-const Dot = ({ className }) => <span className={`h-4 w-4 rounded-full ${className}`} />;
+const Dot = ({ className }) => <span className={`h-2.5 w-2.5 rounded-full ${className}`} />;
 
-export default function ProductCard({ img, title, dept, price, sale }) {
+export default function ProductCard({ img, image, title, dept, department, price, sale }) {
+  const imgSrc = img || image;
+  const deptText = dept || department;
+
   return (
-    <div className="flex w-full flex-col items-center bg-white">
-      <div className="w-full bg-[#F6F6F6]">
-        <div className="aspect-3/4 w-full overflow-hidden">
-          <img src={img} alt={title} className="h-full w-full object-cover" />
-        </div>
+    <div className="flex h-[488px] w-full flex-col items-center bg-white">
+      <div className="h-[300px] w-full bg-[#F6F6F6]">
+        <img src={imgSrc} alt={title} className="h-full w-full object-cover" />
       </div>
 
-      <div className="flex w-full flex-col items-center gap-2 px-2 pb-6 pt-6 text-center">
-        <h5 className="text-sm font-bold text-[#252B42]">{title}</h5>
-        <p className="text-xs font-bold text-[#737373]">{dept}</p>
+      <div className="flex w-full flex-1 flex-col items-center justify-center gap-2 pt-6 text-center">
+        <div className="text-base font-bold text-[#252B42]">{title}</div>
+        <div className="text-sm font-bold text-[#737373]">{deptText}</div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[#BDBDBD]">{price}</span>
-          <span className="text-sm font-bold text-[#23856D]">{sale}</span>
+          <div className="text-sm font-bold text-[#BDBDBD]">{price}</div>
+          <div className="text-sm font-bold text-[#23856D]">{sale}</div>
         </div>
 
         <div className="flex items-center gap-2">
