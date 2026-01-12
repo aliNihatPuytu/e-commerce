@@ -1,3 +1,4 @@
+import { SHOP_PRODUCTS } from "../data/products";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LayoutGrid, List, ChevronRight, ChevronDown } from "lucide-react";
@@ -10,19 +11,6 @@ import c2 from "../assets/images/shop-page/cloths-2.png";
 import c3 from "../assets/images/shop-page/cloths-3.png";
 import c4 from "../assets/images/shop-page/cloths-4.png";
 import c5 from "../assets/images/shop-page/cloths-5.png";
-
-import p1 from "../assets/images/shop-page/product-1.png";
-import p2 from "../assets/images/shop-page/product-2.png";
-import p3 from "../assets/images/shop-page/product-3.png";
-import p4 from "../assets/images/shop-page/product-4.png";
-import p5 from "../assets/images/shop-page/product-5.png";
-import p6 from "../assets/images/shop-page/product-6.png";
-import p7 from "../assets/images/shop-page/product-7.png";
-import p8 from "../assets/images/shop-page/product-8.png";
-import p9 from "../assets/images/shop-page/product-9.png";
-import p10 from "../assets/images/shop-page/product-10.png";
-import p11 from "../assets/images/shop-page/product-11.png";
-import p12 from "../assets/images/shop-page/product-12.png";
 
 import brand1 from "../assets/images/shop-page/brand-1.png";
 import brand2 from "../assets/images/shop-page/brand-2.png";
@@ -76,15 +64,7 @@ export default function ShopPage() {
     []
   );
 
-  const products = useMemo(
-    () =>
-      [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12].map((img, idx) => ({
-        id: idx + 1,
-        img,
-      })),
-    []
-  );
-
+  const products = useMemo(() => SHOP_PRODUCTS, []);
   const brands = useMemo(() => [brand1, brand2, brand3, brand4, brand5, brand6], []);
 
   const [view, setView] = useState("grid");
@@ -166,7 +146,9 @@ export default function ShopPage() {
               className="flex h-10 w-10 items-center justify-center rounded border border-[#E6E6E6] bg-white"
               aria-label="Grid view"
             >
-              <LayoutGrid className={`h-4 w-4 ${view === "grid" ? "text-[#252B42]" : "text-[#737373]"}`} />
+              <LayoutGrid
+                className={`h-4 w-4 ${view === "grid" ? "text-[#252B42]" : "text-[#737373]"}`}
+              />
             </button>
 
             <button
@@ -175,7 +157,9 @@ export default function ShopPage() {
               className="flex h-10 w-10 items-center justify-center rounded border border-[#E6E6E6] bg-white"
               aria-label="List view"
             >
-              <List className={`h-4 w-4 ${view === "list" ? "text-[#252B42]" : "text-[#737373]"}`} />
+              <List
+                className={`h-4 w-4 ${view === "list" ? "text-[#252B42]" : "text-[#737373]"}`}
+              />
             </button>
           </div>
 
@@ -205,25 +189,32 @@ export default function ShopPage() {
           <div className="grid w-full grid-cols-1 justify-items-center gap-[30px] sm:grid-cols-2 sm:justify-items-stretch sm:gap-x-8 sm:gap-y-12 lg:grid-cols-4">
             {products.map((p) => (
               <div key={p.id} className="w-[348px] sm:w-full">
-                <div className="sm:hidden">
-                  <MobileProductCard
-                    img={p.img}
-                    title="Graphic Design"
-                    dept="English Department"
-                    price="$16.48"
-                    sale="$6.48"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/product/${p.id}`)}
+                  className="w-full"
+                  aria-label={`Open product ${p.id}`}
+                >
+                  <div className="sm:hidden">
+                    <MobileProductCard
+                      img={p.img}
+                      title={p.title}
+                      dept={p.department}
+                      price={p.price}
+                      sale={p.sale}
+                    />
+                  </div>
 
-                <div className="hidden sm:block">
-                  <ProductCard
-                    img={p.img}
-                    title="Graphic Design"
-                    dept="English Department"
-                    price="$16.48"
-                    sale="$6.48"
-                  />
-                </div>
+                  <div className="hidden sm:block">
+                    <ProductCard
+                      img={p.img}
+                      title={p.title}
+                      dept={p.department}
+                      price={p.price}
+                      sale={p.sale}
+                    />
+                  </div>
+                </button>
               </div>
             ))}
           </div>

@@ -50,6 +50,7 @@ import ProductCard from "../components/ProductCard";
 
 const bestsellers = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10];
 const brands = [brand1, brand2, brand3, brand4, brand5, brand6];
+const bestsellerItems = bestsellers.map((img, i) => ({ id: 16 + i, img }));
 
 export default function HomePage() {
   return (
@@ -108,7 +109,7 @@ export default function HomePage() {
           <div className="mx-auto w-full max-w-[1440px] px-4">
             <div className="mx-auto w-full max-w-[1198px]">
               <div className="flex w-full flex-col gap-[30px] md:flex-row">
-                <TopWeekLarge img={top1} />
+                <TopWeekLarge img={top1} to="/product/13" />
                 <div className="flex w-full flex-col gap-[22px] md:w-[557px]">
                   <TopWeekSmall
                     img={top2}
@@ -116,6 +117,7 @@ export default function HomePage() {
                     w={557}
                     overlayW={347}
                     overlayH={173}
+                    to="/product/14"
                   />
                   <TopWeekSmall
                     img={top3}
@@ -123,6 +125,7 @@ export default function HomePage() {
                     w={557}
                     overlayW={360}
                     overlayH={153}
+                    to="/product/15"
                   />
                 </div>
               </div>
@@ -145,13 +148,14 @@ export default function HomePage() {
             </div>
 
             <div className="mt-10 flex flex-wrap justify-between gap-y-12">
-              {bestsellers.map((img, i) => (
-                <div
-                  key={i}
+              {bestsellerItems.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/product/${p.id}`}
                   className="flex basis-1/2 flex-col items-center px-2 text-center md:basis-1/5 md:px-0"
                 >
                   <div className="h-[238px] w-[183px] overflow-hidden bg-[#F9F9F9]">
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    <img src={p.img} alt="" className="h-full w-full object-cover" />
                   </div>
 
                   <div className="mt-6 text-sm font-bold tracking-[0.2px] text-[#252B42]">
@@ -172,17 +176,17 @@ export default function HomePage() {
                     <span className="h-4 w-4 rounded-full bg-[#E77C40]" />
                     <span className="h-4 w-4 rounded-full bg-[#252B42]" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
 
             <div className="mt-12 flex justify-center">
-              <button
-                type="button"
-                className="h-[52px] rounded-[5px] border border-[#23A6F0] px-10 text-sm font-bold tracking-[0.2px] text-[#23A6F0]"
+              <Link
+                to="/shop"
+                className="inline-flex h-[52px] items-center justify-center rounded-[5px] border border-[#23A6F0] px-10 text-sm font-bold tracking-[0.2px] text-[#23A6F0]"
               >
                 LOAD MORE PRODUCTS
-              </button>
+              </Link>
             </div>
           </Container>
         </div>
@@ -330,9 +334,9 @@ function MobileHome() {
       <div className="w-full pt-2">
         <div className="mx-auto w-full max-w-[414px]">
           <div className="mx-auto flex w-[345px] flex-col gap-6 pb-10">
-            <MobileTopCard img={top1} h={556} />
-            <MobileTopCard img={top2} h={398} />
-            <MobileTopCard img={top3} h={398} />
+            <MobileTopCard img={top1} h={556} to="/product/13" />
+            <MobileTopCard img={top2} h={398} to="/product/14" />
+            <MobileTopCard img={top3} h={398} to="/product/15" />
           </div>
         </div>
       </div>
@@ -352,26 +356,26 @@ function MobileHome() {
           </div>
 
           <div className="mt-10 flex flex-col gap-10 pb-8">
-            {bestsellers.map((img, i) => (
-              <div key={i} className="mx-auto w-[238px]">
+            {bestsellerItems.map((p) => (
+              <Link key={p.id} to={`/product/${p.id}`} className="mx-auto w-[238px]">
                 <ProductCard
-                  img={img}
+                  img={p.img}
                   title="Graphic Design"
                   dept="English Department"
                   price="$16.48"
                   sale="$6.48"
                 />
-              </div>
+              </Link>
             ))}
           </div>
 
           <div className="flex justify-center pb-14">
-            <button
-              type="button"
-              className="h-[52px] w-[262px] rounded-[5px] border border-[#23A6F0] text-sm font-bold tracking-[0.2px] text-[#23A6F0]"
+            <Link
+              to="/shop"
+              className="inline-flex h-[52px] w-[262px] items-center justify-center rounded-[5px] border border-[#23A6F0] text-sm font-bold tracking-[0.2px] text-[#23A6F0]"
             >
               LOAD MORE PRODUCTS
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -468,7 +472,7 @@ function MobileHome() {
   );
 }
 
-function MobileTopCard({ img, h }) {
+function MobileTopCard({ img, h, to }) {
   const heightClass = h === 556 ? "h-[556px]" : "h-[398px]";
 
   return (
@@ -479,18 +483,18 @@ function MobileTopCard({ img, h }) {
         <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">
           Top Product Of the Week
         </div>
-        <button
-          type="button"
+        <Link
+          to={to}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-[5px] border border-white px-6 text-sm font-bold tracking-[0.2px] text-white"
         >
           EXPLORE ITEMS
-        </button>
+        </Link>
       </div>
     </div>
   );
 }
 
-function TopWeekLarge({ img }) {
+function TopWeekLarge({ img, to }) {
   return (
     <div className="relative h-[400px] w-full overflow-hidden rounded-[5px] bg-[#F9F9F9] md:h-[572px] md:w-[611px]">
       <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -499,18 +503,18 @@ function TopWeekLarge({ img }) {
         <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">
           Top Product Of the Week
         </div>
-        <button
-          type="button"
+        <Link
+          to={to}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-[5px] border border-white px-6 text-sm font-bold tracking-[0.2px] text-white"
         >
           EXPLORE ITEMS
-        </button>
+        </Link>
       </div>
     </div>
   );
 }
 
-function TopWeekSmall({ img, h, w, overlayW, overlayH }) {
+function TopWeekSmall({ img, h, w, overlayW, overlayH, to }) {
   const heightClass = h === 289 ? "h-[289px]" : "h-[261px]";
   const overlayWClass = overlayW === 347 ? "w-[347px]" : "w-[360px]";
   const overlayHClass = overlayH === 173 ? "h-[173px]" : "h-[153px]";
@@ -522,12 +526,12 @@ function TopWeekSmall({ img, h, w, overlayW, overlayH }) {
 
       <div className={`absolute bottom-0 left-0 bg-[rgba(45,139,192,0.75)] px-6 py-7 ${overlayWClass} ${overlayHClass}`}>
         <div className="text-sm font-bold tracking-[0.2px] text-white">Top Product Of the Week</div>
-        <button
-          type="button"
+        <Link
+          to={to}
           className="mt-4 inline-flex h-11 items-center justify-center rounded-[5px] border border-white px-6 text-sm font-bold tracking-[0.2px] text-white"
         >
           EXPLORE ITEMS
-        </button>
+        </Link>
       </div>
 
       <div className={`hidden md:block ${spacerWClass}`} />
@@ -556,22 +560,13 @@ function PostCard({ img }) {
         </span>
 
         <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3">
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]">
             <Heart className="h-4 w-4 text-[#252B42]" />
           </button>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]">
             <ShoppingCart className="h-4 w-4 text-[#252B42]" />
           </button>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]">
             <Eye className="h-4 w-4 text-[#252B42]" />
           </button>
         </div>
@@ -646,25 +641,13 @@ function MobilePostCard({ img }) {
         </span>
 
         <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3">
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-            aria-label="Like"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]" aria-label="Like">
             <Heart className="h-4 w-4 text-[#252B42]" />
           </button>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-            aria-label="Cart"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]" aria-label="Cart">
             <ShoppingCart className="h-4 w-4 text-[#252B42]" />
           </button>
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]"
-            aria-label="Preview"
-          >
+          <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]" aria-label="Preview">
             <Eye className="h-4 w-4 text-[#252B42]" />
           </button>
         </div>

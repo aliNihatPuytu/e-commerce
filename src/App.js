@@ -9,7 +9,6 @@ import ContactPage from "./pages/ContactPage";
 import PagesPage from "./pages/PagesPage";
 import PricingPage from "./pages/PricingPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
-import ProductPage from "./pages/ProductPage";
 import ProfilePage from "./pages/ProfilePage";
 import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
@@ -29,7 +28,6 @@ export default function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/pages" element={<PagesPage />} />
           <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/product" element={<ProductPage />} />
           <Route path="/product/:id" element={<ProductDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/register" element={<RegisterPage />} />

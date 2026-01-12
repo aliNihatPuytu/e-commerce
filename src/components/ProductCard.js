@@ -1,10 +1,26 @@
+import { Link } from "react-router-dom";
+
 const Dot = ({ className }) => <span className={`h-2.5 w-2.5 rounded-full ${className}`} />;
 
-export default function ProductCard({ img, image, title, dept, department, price, sale }) {
+export default function ProductCard({
+  to,
+  img,
+  image,
+  title,
+  dept,
+  department,
+  category,
+  price,
+  sale,
+  oldPrice,
+  priceOld,
+}) {
   const imgSrc = img || image;
-  const deptText = dept || department;
+  const deptText = dept || department || category;
+  const oldText = priceOld || oldPrice || price;
+  const saleText = sale;
 
-  return (
+  const Card = (
     <div className="flex h-[488px] w-full flex-col items-center bg-white">
       <div className="h-[300px] w-full bg-[#F6F6F6]">
         <img src={imgSrc} alt={title} className="h-full w-full object-cover" />
@@ -15,8 +31,8 @@ export default function ProductCard({ img, image, title, dept, department, price
         <div className="text-sm font-bold text-[#737373]">{deptText}</div>
 
         <div className="flex items-center gap-2">
-          <div className="text-sm font-bold text-[#BDBDBD]">{price}</div>
-          <div className="text-sm font-bold text-[#23856D]">{sale}</div>
+          <div className="text-sm font-bold text-[#BDBDBD]">{oldText}</div>
+          <div className="text-sm font-bold text-[#23856D]">{saleText}</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -28,4 +44,14 @@ export default function ProductCard({ img, image, title, dept, department, price
       </div>
     </div>
   );
+
+  if (to) {
+    return (
+      <Link to={to} aria-label={title} className="block w-full">
+        {Card}
+      </Link>
+    );
+  }
+
+  return Card;
 }
