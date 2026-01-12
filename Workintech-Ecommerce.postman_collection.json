@@ -1,0 +1,69 @@
+{
+  "info": {
+    "name": "Workintech FE E-Commerce",
+    "_postman_id": "b2f0c3a2-8f6a-4d8d-9c3d-2c6b9c2b4c11",
+    "description": "Roles, signup, login, resend activation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://workintech-fe-ecommerce.onrender.com" },
+    { "key": "email", "value": "test@example.com" },
+    { "key": "password", "value": "Test1234!" }
+  ],
+  "item": [
+    {
+      "name": "GET Roles",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/roles", "host": ["{{baseUrl}}"], "path": ["roles"] }
+      }
+    },
+    {
+      "name": "POST Signup (Customer/Admin)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role_id\": 1\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/signup", "host": ["{{baseUrl}}"], "path": ["signup"] }
+      }
+    },
+    {
+      "name": "POST Signup (Store)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Store Owner\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role_id\": 2,\n  \"store\": {\n    \"name\": \"My Store\",\n    \"phone\": \"05551234567\",\n    \"tax_no\": \"T1234V123456\",\n    \"bank_account\": \"TR100000000000000000000000\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/signup", "host": ["{{baseUrl}}"], "path": ["signup"] }
+      }
+    },
+    {
+      "name": "POST Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] }
+      }
+    },
+    {
+      "name": "POST Resend Activation (try endpoint)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+        "url": {
+          "raw": "{{baseUrl}}/resend-activation",
+          "host": ["{{baseUrl}}"],
+          "path": ["resend-activation"]
+        }
+      }
+    }
+  ]
+}

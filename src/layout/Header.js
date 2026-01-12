@@ -24,8 +24,9 @@ export default function Header() {
 
   const isShopPage = location.pathname === "/shop";
   const isContactPage = location.pathname === "/contact";
+  const isTeamPage = location.pathname === "/team";
 
-  if (isContactPage) {
+  if (isContactPage || isTeamPage) {
     return (
       <header className="w-full bg-white">
         <div className="hidden md:block">
@@ -42,7 +43,7 @@ export default function Header() {
               <Link to="/pricing" className="text-[#737373]">
                 Pricing
               </Link>
-              <Link to="/contact" className="text-[#252B42]">
+              <Link to="/contact" className={isContactPage ? "text-[#252B42]" : "text-[#737373]"}>
                 Contact
               </Link>
             </nav>
@@ -109,7 +110,11 @@ export default function Header() {
                 <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
                   Pricing
                 </Link>
-                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-[#252B42]">
+                <Link
+                  to="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={isContactPage ? "text-[#252B42]" : "text-[#737373]"}
+                >
                   Contact
                 </Link>
               </nav>
