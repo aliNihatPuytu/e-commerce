@@ -1,142 +1,131 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
-import { useState } from "react";
-import client from "../api/client";
-import AuthFrame from "../components/AuthFrame";
+import { showCenterNotice } from "../utils/centerNotice";
+import { loginThunk } from "../store/actions/authThunks";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const inputCls =
-  "h-10 rounded border border-[#E6E6E6] px-3 text-sm text-[#252B42] outline-none focus:border-[#23A6F0]";
-
 export default function LoginPage() {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname || "/";
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
+    setError,
   } = useForm({
-    defaultValues: { email: "", password: "" },
-    mode: "onTouched",
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+    mode: "onSubmit",
   });
 
-  async function onSubmit(values) {
-    try {
-      setLoading(true);
-      const res = await client.post("/login", {
-        email: values.email,
-        password: values.password,
-      });
+  const onSubmit = async (values) => {
+    const email = String(values.email || "").trim();
+    const password = String(values.password || "");
+    const rememberMe = Boolean(values.rememberMe);
 
-      const token =
-        res?.data?.token ||
-        res?.data?.access_token ||
-        res?.data?.accessToken ||
-        res?.data?.data?.token;
+    const result = await dispatch(loginThunk({ email, password, rememberMe }));
 
-      if (token) localStorage.setItem("token", token);
-      localStorage.setItem("user_email", values.email);
-
-      toast.success("Signed in.");
-      navigate("/profile");
-    } catch (e) {
-      const raw =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        e?.response?.data?.detail ||
-        "";
-
-      const lower = String(raw || "").toLowerCase();
-
-      if (lower.includes("account is not activated")) {
-        localStorage.setItem("token", `dev-${Date.now()}`);
-        localStorage.setItem("user_email", values.email);
-        toast.success("Signed in.");
-        navigate("/profile");
-        return;
-      }
-
-      toast.error(String(raw || "Login failed. Please check your credentials."));
-    } finally {
-      setLoading(false);
+    if (result?.ok) {
+      showCenterNotice({ type: "success", title: "Signed in", subtitle: "", duration: 2200 });
+      navigate(from, { replace: true });
+      return;
     }
-  }
 
-  const bottom = (
-    <>
-      <div className="relative flex items-center justify-center">
-        <div className="h-px w-full bg-[#E6E6E6]" />
-        <div className="absolute bg-white px-3 text-xs text-[#737373]">New to Bandage?</div>
-      </div>
+    if (result?.notActivated) {
+      showCenterNotice({
+        type: "info",
+        title: "Account not activated",
+        subtitle: "(Please check your email to activate.)",
+        duration: 2600,
+      });
+      toast.warning(result.message || "Account not activated");
+      return;
+    }
 
-      <Link
-        to="/signup"
-        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded border border-[#23A6F0] bg-[#FAFAFA] text-sm font-semibold text-[#23A6F0]"
-      >
-        Create your Bandage account
-      </Link>
-    </>
-  );
+    toast.error(result?.message || "Unauthorized");
+    setError("password", { type: "server", message: result?.message || "Unauthorized" });
+  };
 
   return (
-    <AuthFrame title="Sign in" bottom={bottom}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Email</label>
-          <input
-            className={inputCls}
-            placeholder="you@example.com"
-            {...register("email", {
-              required: "Email is required",
-              validate: (v) => emailRe.test(String(v || "")) || "Email is not valid",
-            })}
-          />
-          {errors.email?.message && <p className="text-xs text-red-600">{errors.email.message}</p>}
+    <div className="w-full px-4 py-10">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-4 text-center">
+          <div className="text-2xl font-bold tracking-[0.1px] text-[#252B42]">Bandage</div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-[#252B42]">Password</label>
+        <div className="w-full rounded-md border border-[#E6E6E6] bg-white p-6">
+          <h1 className="text-[28px] font-semibold leading-8 text-[#252B42]">Sign in</h1>
+          <div className="mt-1 text-sm font-medium text-[#737373]">Welcome back</div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Email</label>
+              <input
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                placeholder="you@example.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: { value: emailRe, message: "Invalid email" },
+                })}
+              />
+              {errors.email?.message ? <div className="text-xs font-medium text-red-600">{errors.email.message}</div> : null}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Password</label>
+              <input
+                type="password"
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                {...register("password", { required: "Password is required" })}
+              />
+              {errors.password?.message ? (
+                <div className="text-xs font-medium text-red-600">{errors.password.message}</div>
+              ) : null}
+            </div>
+
+            <label className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-[#737373]">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#23A6F0]"
+                {...register("rememberMe")}
+              />
+              Remember me
+            </label>
+
             <button
-              type="button"
-              onClick={() => toast.info("Password reset is not implemented yet.")}
-              className="text-xs font-semibold text-[#23A6F0]"
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex h-11 w-full items-center justify-center rounded bg-[#23A6F0] text-sm font-bold text-white disabled:opacity-60"
             >
-              Forgot password?
+              {isSubmitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  Signing in...
+                </span>
+              ) : (
+                "Sign in"
+              )}
             </button>
-          </div>
-
-          <input
-            type="password"
-            className={inputCls}
-            placeholder="Your password"
-            {...register("password", { required: "Password is required" })}
-          />
-          {errors.password?.message && <p className="text-xs text-red-600">{errors.password.message}</p>}
+          </form>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex h-10 w-full items-center justify-center rounded bg-[#23A6F0] text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Signing in...
-            </span>
-          ) : (
-            "Continue"
-          )}
-        </button>
-
-        <p className="text-xs text-[#737373]">
-          By continuing, you agree to Bandage’s Conditions of Use and Privacy Notice.
-        </p>
-      </form>
-    </AuthFrame>
+        <div className="mt-4 w-full rounded-md border border-[#E6E6E6] bg-white p-4 text-sm text-[#252B42]">
+          New to Bandage?{" "}
+          <Link to="/signup" className="font-semibold text-[#23A6F0]">
+            Create your account
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

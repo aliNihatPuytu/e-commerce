@@ -1,50 +1,57 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import client from "../api/client";
-import AuthFrame from "../components/AuthFrame";
+import { fetchRoles, signupUser } from "../api/api";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-const taxNoRe = /^T\d{4}V\d{6}$/;
+const passRe = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
-function roleLabel(r) {
-  return String(r?.name ?? r?.role ?? r?.title ?? "").trim();
+const trPhoneOk = (v) => {
+  const s = String(v || "").replace(/[^\d+]/g, "");
+  const n = s.startsWith("+") ? s.slice(1) : s;
+  const x = n.startsWith("90") ? n.slice(2) : n.startsWith("0") ? n.slice(1) : n;
+  return /^5\d{9}$/.test(x);
+};
+
+const taxOk = (v) => /^T\d{4}V\d{6}$/.test(String(v || "").trim().toUpperCase());
+const ibanOk = (v) => /^TR\d{24}$/.test(String(v || "").replace(/\s/g, "").toUpperCase());
+
+function normalizeRoles(data) {
+  const list = Array.isArray(data) ? data : Array.isArray(data?.roles) ? data.roles : [];
+  return list
+    .map((r) => ({
+      id: r?.id ?? r?.role_id ?? r?._id,
+      name: r?.name ?? r?.title ?? r?.role ?? "",
+      code: r?.code ?? r?.key ?? "",
+    }))
+    .filter((r) => r.id != null && String(r.name || r.code || "").length);
 }
 
-function normalizeDigits(v) {
-  return String(v || "").replace(/\D/g, "");
+function isCustomerRole(r) {
+  const x = `${r?.name} ${r?.code}`.toLowerCase();
+  return x.includes("customer");
 }
 
-function isValidTrPhone(v) {
-  const d = normalizeDigits(v);
-  if (d.length === 10 && d.startsWith("5")) return true;
-  if (d.length === 11 && d.startsWith("05")) return true;
-  if (d.length === 12 && d.startsWith("90") && d[2] === "5") return true;
-  return false;
+function isStoreRole(r) {
+  const x = `${r?.name} ${r?.code}`.toLowerCase();
+  return x.includes("store");
 }
-
-function isValidTrIban(v) {
-  const s = String(v || "").replace(/\s+/g, "").toUpperCase();
-  return /^TR\d{24}$/.test(s);
-}
-
-const inputCls =
-  "h-10 rounded border border-[#E6E6E6] px-3 text-sm text-[#252B42] outline-none focus:border-[#23A6F0]";
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
-    formState: { errors, isSubmitting },
+    setValue,
+    formState: { errors },
   } = useForm({
+    mode: "onBlur",
     defaultValues: {
       name: "",
       email: "",
@@ -56,299 +63,246 @@ export default function SignUpPage() {
       store_tax_no: "",
       store_bank_account: "",
     },
-    mode: "onTouched",
   });
-
-  const roleId = watch("role_id");
-  const password = watch("password");
-
-  const selectedRole = useMemo(() => {
-    const idNum = Number(roleId);
-    if (!Number.isFinite(idNum)) return null;
-    return roles.find((r) => Number(r?.id) === idNum) || null;
-  }, [roleId, roles]);
-
-  const isStore = useMemo(() => {
-    const lbl = roleLabel(selectedRole).toLowerCase();
-    return lbl.includes("store");
-  }, [selectedRole]);
 
   useEffect(() => {
     let alive = true;
 
-    async function loadRoles() {
-      try {
-        setRolesLoading(true);
-        const res = await client.get("/roles");
-        const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.roles || [];
-        if (!alive) return;
-        setRoles(list);
+    (async () => {
+      setRolesLoading(true);
+      const res = await fetchRoles();
+      if (!alive) return;
 
-        const customer = list.find((r) => roleLabel(r).toLowerCase().includes("customer"));
-        const defaultId = customer?.id ?? list?.[0]?.id;
-        if (defaultId != null) setValue("role_id", String(defaultId));
-      } catch (e) {
-        toast.error("Roles could not be loaded.");
-      } finally {
-        if (alive) setRolesLoading(false);
+      if (!res.ok) {
+        setRoles([]);
+        setRolesLoading(false);
+        toast.error(res.message || "Roles could not be loaded");
+        return;
       }
-    }
 
-    loadRoles();
+      const normalized = normalizeRoles(res.data);
+      setRoles(normalized);
+      setRolesLoading(false);
+
+      const defaultRole = normalized.find(isCustomerRole) || normalized[0];
+      if (defaultRole?.id != null) setValue("role_id", String(defaultRole.id));
+    })();
+
     return () => {
       alive = false;
     };
   }, [setValue]);
 
-  async function onSubmit(values) {
-    try {
-      const payload = {
-        name: values.name,
-        email: values.email,
-        password: values.password,
-        role_id: Number(values.role_id),
-      };
+  const roleId = watch("role_id");
+  const password = watch("password");
 
-      if (isStore) {
-        payload.store = {
-          name: values.store_name,
-          phone: values.store_phone,
-          tax_no: values.store_tax_no,
-          bank_account: values.store_bank_account,
-        };
-      }
+  const selectedRole = useMemo(() => roles.find((r) => String(r.id) === String(roleId)), [roles, roleId]);
+  const storeSelected = useMemo(() => isStoreRole(selectedRole), [selectedRole]);
 
-      await client.post("/signup", payload);
-
-      try {
-        const res = await client.post("/login", {
-          email: values.email,
-          password: values.password,
-        });
-
-        const token =
-          res?.data?.token ||
-          res?.data?.access_token ||
-          res?.data?.accessToken ||
-          res?.data?.data?.token;
-
-        if (token) localStorage.setItem("token", token);
-        localStorage.setItem("user_email", values.email);
-        toast.success("Account created. Signed in.");
-        navigate("/profile");
-        return;
-      } catch (e) {
-        const raw =
-          e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          e?.response?.data?.detail ||
-          "";
-
-        const lower = String(raw || "").toLowerCase();
-
-        if (lower.includes("account is not activated")) {
-          localStorage.setItem("token", `dev-${Date.now()}`);
-          localStorage.setItem("user_email", values.email);
-          toast.success("Account created. Signed in.");
-          navigate("/profile");
-          return;
-        }
-
-        toast.success("Account created. Please sign in.");
-        navigate("/login");
-        return;
-      }
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        e?.response?.data?.detail ||
-        "Signup failed. Please check your inputs.";
-      toast.error(String(msg));
+  const onSubmit = async (values) => {
+    if (submitting) return;
+    if (!roleId) {
+      toast.error("Role is required");
+      return;
     }
-  }
 
-  const bottom = (
-    <>
-      <div className="relative flex items-center justify-center">
-        <div className="h-px w-full bg-[#E6E6E6]" />
-        <div className="absolute bg-white px-3 text-xs text-[#737373]">Already have an account?</div>
-      </div>
+    setSubmitting(true);
 
-      <Link
-        to="/login"
-        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded border border-[#23A6F0] bg-[#FAFAFA] text-sm font-semibold text-[#23A6F0]"
-      >
-        Sign in
-      </Link>
-    </>
-  );
+    const base = {
+      name: values.name.trim(),
+      email: values.email.trim(),
+      password: values.password,
+      role_id: Number(roleId),
+    };
+
+    const payload = storeSelected
+      ? {
+          ...base,
+          store: {
+            name: values.store_name.trim(),
+            phone: String(values.store_phone || "").trim(),
+            tax_no: String(values.store_tax_no || "").trim().toUpperCase(),
+            bank_account: String(values.store_bank_account || "").replace(/\s/g, "").toUpperCase(),
+          },
+        }
+      : base;
+
+    const res = await signupUser(payload);
+    setSubmitting(false);
+
+    if (!res.ok) {
+      toast.error(res.message || "Signup failed");
+      return;
+    }
+
+    toast.warning("You need to click link in email to activate your account!");
+    navigate(-1);
+  };
 
   return (
-    <AuthFrame title="Create account" bottom={bottom}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Your name</label>
-          <input
-            className={inputCls}
-            placeholder="First and last name"
-            {...register("name", {
-              required: "Name is required",
-              minLength: { value: 3, message: "Name must be at least 3 characters" },
-            })}
-          />
-          {errors.name?.message && <p className="text-xs text-red-600">{errors.name.message}</p>}
+    <div className="w-full px-4 py-10">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-4 text-center">
+          <div className="text-2xl font-bold tracking-[0.1px] text-[#252B42]">Bandage</div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Email</label>
-          <input
-            className={inputCls}
-            placeholder="you@example.com"
-            {...register("email", {
-              required: "Email is required",
-              validate: (v) => emailRe.test(String(v || "")) || "Email is not valid",
-            })}
-          />
-          {errors.email?.message && <p className="text-xs text-red-600">{errors.email.message}</p>}
-        </div>
+        <div className="w-full rounded-md border border-[#E6E6E6] bg-white p-6">
+          <h1 className="text-[28px] font-semibold leading-8 text-[#252B42]">Create account</h1>
+          <div className="mt-1 text-sm font-medium text-[#737373]">Sign up to continue</div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Password</label>
-          <input
-            type="password"
-            className={inputCls}
-            placeholder="Min 8 chars (upper, lower, number, special)"
-            {...register("password", {
-              required: "Password is required",
-              validate: (v) =>
-                passwordRe.test(String(v || "")) ||
-                "Min 8 chars, include upper, lower, number and special char",
-            })}
-          />
-          {errors.password?.message && <p className="text-xs text-red-600">{errors.password.message}</p>}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Re-enter password</label>
-          <input
-            type="password"
-            className={inputCls}
-            {...register("passwordConfirm", {
-              required: "Please confirm password",
-              validate: (v) => String(v || "") === String(password || "") || "Passwords do not match",
-            })}
-          />
-          {errors.passwordConfirm?.message && (
-            <p className="text-xs text-red-600">{errors.passwordConfirm.message}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-[#252B42]">Role</label>
-          <select
-            className="h-10 rounded border border-[#E6E6E6] bg-white px-3 text-sm text-[#252B42] outline-none focus:border-[#23A6F0] disabled:opacity-60"
-            disabled={rolesLoading}
-            {...register("role_id", { required: "Role is required" })}
-          >
-            {rolesLoading && <option value="">Loading...</option>}
-            {!rolesLoading &&
-              roles.map((r) => (
-                <option key={r?.id} value={String(r?.id)}>
-                  {roleLabel(r) || `Role ${r?.id}`}
-                </option>
-              ))}
-          </select>
-          {errors.role_id?.message && <p className="text-xs text-red-600">{errors.role_id.message}</p>}
-        </div>
-
-        {isStore && (
-          <div className="mt-2 rounded border border-[#E6E6E6] bg-[#FAFAFA] p-4">
-            <div className="text-sm font-semibold text-[#252B42]">Store information</div>
-
-            <div className="mt-3 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-[#252B42]">Store name</label>
-                <input
-                  className={`${inputCls} bg-white`}
-                  placeholder="At least 3 characters"
-                  {...register("store_name", {
-                    required: "Store name is required",
-                    minLength: { value: 3, message: "Store name must be at least 3 characters" },
-                  })}
-                />
-                {errors.store_name?.message && (
-                  <p className="text-xs text-red-600">{errors.store_name.message}</p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-[#252B42]">Store phone</label>
-                <input
-                  className={`${inputCls} bg-white`}
-                  placeholder="+90 5xx xxx xx xx"
-                  {...register("store_phone", {
-                    required: "Store phone is required",
-                    validate: (v) => isValidTrPhone(v) || "Phone is not a valid Türkiye mobile number",
-                  })}
-                />
-                {errors.store_phone?.message && (
-                  <p className="text-xs text-red-600">{errors.store_phone.message}</p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-[#252B42]">Store tax ID</label>
-                <input
-                  className={`${inputCls} bg-white`}
-                  placeholder="TXXXXVXXXXXX"
-                  {...register("store_tax_no", {
-                    required: "Tax ID is required",
-                    validate: (v) => taxNoRe.test(String(v || "")) || "Tax ID must match TXXXXVXXXXXX",
-                  })}
-                />
-                {errors.store_tax_no?.message && (
-                  <p className="text-xs text-red-600">{errors.store_tax_no.message}</p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-[#252B42]">Store bank account</label>
-                <input
-                  className={`${inputCls} bg-white`}
-                  placeholder="TR00 0000 0000 0000 0000 0000 00"
-                  {...register("store_bank_account", {
-                    required: "IBAN is required",
-                    validate: (v) => isValidTrIban(v) || "IBAN must be a valid TR IBAN",
-                  })}
-                />
-                {errors.store_bank_account?.message && (
-                  <p className="text-xs text-red-600">{errors.store_bank_account.message}</p>
-                )}
-              </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Name</label>
+              <input
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                {...register("name", { required: "Name is required", minLength: { value: 3, message: "Min 3 chars" } })}
+              />
+              {errors.name && <div className="text-xs font-medium text-red-600">{errors.name.message}</div>}
             </div>
-          </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || rolesLoading}
-          className="inline-flex h-10 w-full items-center justify-center rounded bg-[#23A6F0] text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {isSubmitting ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Creating...
-            </span>
-          ) : (
-            "Create account"
-          )}
-        </button>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Email</label>
+              <input
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                placeholder="you@example.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: { value: emailRe, message: "Invalid email" },
+                })}
+              />
+              {errors.email && <div className="text-xs font-medium text-red-600">{errors.email.message}</div>}
+            </div>
 
-        <p className="text-xs text-[#737373]">
-          By creating an account, you agree to Bandage’s Conditions of Use and Privacy Notice.
-        </p>
-      </form>
-    </AuthFrame>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Password</label>
+              <input
+                type="password"
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                {...register("password", {
+                  required: "Password is required",
+                  validate: (v) => passRe.test(v) || "Min 8 + upper + lower + number + special",
+                })}
+              />
+              {errors.password && <div className="text-xs font-medium text-red-600">{errors.password.message}</div>}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Re-enter password</label>
+              <input
+                type="password"
+                className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                {...register("passwordConfirm", {
+                  required: "Confirm password is required",
+                  validate: (v) => v === password || "Passwords do not match",
+                })}
+              />
+              {errors.passwordConfirm && (
+                <div className="text-xs font-medium text-red-600">{errors.passwordConfirm.message}</div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold text-[#252B42]">Role</label>
+              <select
+                disabled={rolesLoading}
+                className="h-11 rounded border border-[#E6E6E6] bg-white px-3 text-sm outline-none focus:border-[#23A6F0] disabled:opacity-60"
+                {...register("role_id", { required: true })}
+              >
+                <option value="" disabled>
+                  {rolesLoading ? "Loading..." : "Select role"}
+                </option>
+                {roles.map((r) => (
+                  <option key={r.id} value={String(r.id)}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              {!roleId && !rolesLoading && <div className="text-xs font-medium text-red-600">Role is required</div>}
+            </div>
+
+            {storeSelected && (
+              <>
+                <div className="mt-2 text-sm font-bold text-[#252B42]">Store details</div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-[#252B42]">Store Name</label>
+                  <input
+                    className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                    {...register("store_name", {
+                      validate: (v) => (!storeSelected ? true : String(v || "").trim().length >= 3 || "Min 3 chars"),
+                    })}
+                  />
+                  {errors.store_name && <div className="text-xs font-medium text-red-600">{errors.store_name.message}</div>}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-[#252B42]">Store Phone</label>
+                  <input
+                    className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                    placeholder="5XXXXXXXXX"
+                    {...register("store_phone", {
+                      validate: (v) => (!storeSelected ? true : trPhoneOk(v) || "Invalid TR phone"),
+                    })}
+                  />
+                  {errors.store_phone && (
+                    <div className="text-xs font-medium text-red-600">{errors.store_phone.message}</div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-[#252B42]">Store Tax ID</label>
+                  <input
+                    className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                    placeholder="T1234V123456"
+                    {...register("store_tax_no", {
+                      validate: (v) => (!storeSelected ? true : taxOk(v) || "Format: TXXXXVXXXXXX"),
+                    })}
+                  />
+                  {errors.store_tax_no && (
+                    <div className="text-xs font-medium text-red-600">{errors.store_tax_no.message}</div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-semibold text-[#252B42]">Store Bank Account (IBAN)</label>
+                  <input
+                    className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
+                    placeholder="TR________________________"
+                    {...register("store_bank_account", {
+                      validate: (v) => (!storeSelected ? true : ibanOk(v) || "Invalid TR IBAN"),
+                    })}
+                  />
+                  {errors.store_bank_account && (
+                    <div className="text-xs font-medium text-red-600">{errors.store_bank_account.message}</div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting || rolesLoading || !roleId}
+              className="inline-flex h-11 w-full items-center justify-center rounded bg-[#23A6F0] text-sm font-bold text-white disabled:opacity-60"
+            >
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  Creating...
+                </span>
+              ) : (
+                "Create your account"
+              )}
+            </button>
+          </form>
+        </div>
+
+        <div className="mt-4 w-full rounded-md border border-[#E6E6E6] bg-white p-4 text-sm text-[#252B42]">
+          Already have an account?{" "}
+          <Link to="/login" className="font-semibold text-[#23A6F0]">
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

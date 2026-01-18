@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "Workintech FE Ecommerce API",
+    "_postman_id": "c1e0a7a0-9c6a-4d2f-9c85-4f2d9d2c9f01",
+    "description": "T08 Signup/Login/Roles collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://workintech-fe-ecommerce.onrender.com" }
+  ],
+  "item": [
+    {
+      "name": "Roles - List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/roles", "host": ["{{baseUrl}}"], "path": ["roles"] }
+      }
+    },
+    {
+      "name": "Signup - Customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test.user@example.com\",\n  \"password\": \"Aa!23456\",\n  \"role_id\": 1\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/signup", "host": ["{{baseUrl}}"], "path": ["signup"] }
+      }
+    },
+    {
+      "name": "Signup - Store",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Store Owner\",\n  \"email\": \"store.owner@example.com\",\n  \"password\": \"Aa!23456\",\n  \"role_id\": 2,\n  \"store\": {\n    \"name\": \"My Store\",\n    \"phone\": \"05XXXXXXXXX\",\n    \"tax_no\": \"T1234V123456\",\n    \"bank_account\": \"TR000000000000000000000000\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/signup", "host": ["{{baseUrl}}"], "path": ["signup"] }
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test.user@example.com\",\n  \"password\": \"Aa!23456\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] }
+      }
+    }
+  ]
+}

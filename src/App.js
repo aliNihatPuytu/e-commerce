@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
 import PageContent from "./layout/PageContent";
 
 import HomePage from "./pages/HomePage";
@@ -11,17 +10,18 @@ import PagesPage from "./pages/PagesPage";
 import PricingPage from "./pages/PricingPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import ProfilePage from "./pages/ProfilePage";
-import SignupPage from "./pages/SignUpPage";
+import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import TeamPage from "./pages/TeamPage";
 
+import RequireAuth from "./routes/RequireAuth";
+
 export default function App() {
   return (
     <div className="min-h-screen w-full bg-white text-[#252B42]">
-      <ToastContainer position="top-right" autoClose={3500} hideProgressBar />
       <Routes>
         <Route element={<PageContent />}>
           <Route index element={<HomePage />} />
@@ -34,14 +34,18 @@ export default function App() {
           <Route path="/team" element={<TeamPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
 
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
           <Route path="/register" element={<Navigate to="/signup" replace />} />
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
+
+          <Route element={<RequireAuth />}>
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+          </Route>
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
