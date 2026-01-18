@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { LayoutGrid, List, ChevronRight, ChevronDown } from "lucide-react";
+import { LayoutGrid, List, ChevronRight, ChevronDown, ShoppingCart, Heart } from "lucide-react";
 import Container from "../layout/Container";
 import ShopCategoryCard from "../components/ShopCategoryCard";
 import ProductCard from "../components/ProductCard";
@@ -19,16 +19,23 @@ import brand4 from "../assets/images/shop-page/brand-4.png";
 import brand5 from "../assets/images/shop-page/brand-5.png";
 import brand6 from "../assets/images/shop-page/brand-6.png";
 
-import { ensureCategories, fetchProducts, setFilter, setOffset, setSort, slugifyTr } from "../store/actions/productActions";
+import {
+  ensureCategories,
+  fetchProducts,
+  setFilter,
+  setOffset,
+  setSort,
+  slugifyTr,
+} from "../store/actions/productActions";
+import { addToCart } from "../store/actions/shoppingCartActions";
+import { initLikes, toggleLike } from "../store/actions/productActions";
 
 const Dot = ({ className }) => <span className={`h-2.5 w-2.5 rounded-full ${className}`} />;
 
 function MobileProductCard({ img, title, dept, price, sale }) {
   return (
-    <div className="flex h-[615px] w-[348px] flex-col items-center bg-white">
-      <div className="h-[427px] w-full bg-[#F6F6F6]">
-        {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
-      </div>
+    <div className="flex h-[615px] w-[348px] flex-col items-center bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="h-[427px] w-full bg-[#F6F6F6]">{img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}</div>
 
       <div className="flex w-full flex-1 flex-col items-center justify-center pt-6 text-center">
         <div className="w-[328px] space-y-2 pb-8">
@@ -57,12 +64,6 @@ function toGenderSegment(gender) {
   if (g === "k") return "kadin";
   if (g === "e") return "erkek";
   return "kadin";
-}
-
-function toCategoryNameSegment(cat) {
-  const codePart = String(cat?.code || "").split(":")[1] || "";
-  const raw = codePart || String(cat?.title || "");
-  return slugifyTr(raw);
 }
 
 function pickImage(p) {
@@ -96,6 +97,14 @@ function pickDept(p) {
   return String(p?.department || p?.dept || catTitle || "");
 }
 
+function pickProductId(p) {
+  return p?.id ?? p?.product_id ?? p?.productId;
+}
+
+function pickCategoryId(p) {
+  return p?.category_id ?? p?.categoryId ?? p?.category?.id ?? p?.category?.category_id;
+}
+
 function pickPriceOld(p) {
   return p?.oldPrice ?? p?.priceOld ?? p?.price_old ?? p?.price;
 }
@@ -107,7 +116,7 @@ function pickSale(p) {
 export default function ShopPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { categoryId } = useParams();
+  const { categoryId: urlCategoryId } = useParams();
 
   const categories = useSelector((s) => s?.product?.categories) || [];
   const productList = useSelector((s) => s?.product?.productList) || [];
@@ -117,12 +126,14 @@ export default function ShopPage() {
   const offset = useSelector((s) => s?.product?.offset) || 0;
   const filter = useSelector((s) => s?.product?.filter) || "";
   const sort = useSelector((s) => s?.product?.sort) || "";
+  const likedIds = useSelector((s) => s?.product?.likedIds) || [];
 
   const [view, setView] = useState("grid");
   const [sortDraft, setSortDraft] = useState(sort);
 
   useEffect(() => {
     dispatch(ensureCategories());
+    dispatch(initLikes());
   }, [dispatch]);
 
   useEffect(() => {
@@ -130,30 +141,24 @@ export default function ShopPage() {
   }, [sort]);
 
   const parsedCategoryId = useMemo(() => {
-    const n = Number(categoryId);
+    const n = Number(urlCategoryId);
     return Number.isFinite(n) ? n : null;
-  }, [categoryId]);
+  }, [urlCategoryId]);
 
   const brands = useMemo(() => [brand1, brand2, brand3, brand4, brand5, brand6], []);
 
   const categoryCards = useMemo(() => {
     const imgs = [c1, c2, c3, c4, c5];
     const list = Array.isArray(categories) ? categories : [];
-    return list.slice(0, 5).map((c, i) => ({
-      ...c,
-      image: imgs[i % imgs.length],
-      items: "5 Items",
-    }));
+    return list.slice(0, 5).map((c, i) => ({ ...c, image: imgs[i % imgs.length], items: "5 Items" }));
   }, [categories]);
-
-  const debouncedFilter = useMemo(() => filter, [filter]);
 
   useEffect(() => {
     const t = setTimeout(() => {
       dispatch(
         fetchProducts({
           category: parsedCategoryId ?? undefined,
-          filter: debouncedFilter,
+          filter,
           sort,
           limit,
           offset,
@@ -162,7 +167,7 @@ export default function ShopPage() {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [dispatch, parsedCategoryId, debouncedFilter, sort, limit, offset]);
+  }, [dispatch, parsedCategoryId, filter, sort, limit, offset]);
 
   const totalPages = useMemo(() => {
     const t = Number(total) || 0;
@@ -180,21 +185,22 @@ export default function ShopPage() {
   const pageButtons = useMemo(() => {
     const tp = totalPages;
     if (tp <= 3) return Array.from({ length: tp }, (_, i) => i + 1);
-
     const start = Math.max(1, Math.min(currentPage - 1, tp - 2));
     return [start, start + 1, start + 2];
   }, [totalPages, currentPage]);
 
   const onCategoryClick = (cat) => {
     const gender = toGenderSegment(cat?.gender);
-    const name = toCategoryNameSegment(cat);
+    const name = slugifyTr(String(cat?.title || ""));
     const id = cat?.id;
     if (!id) return;
+    dispatch(setOffset(0));
     navigate(`/shop/${gender}/${name}/${id}`);
   };
 
   const onApply = () => {
     dispatch(setSort(sortDraft));
+    dispatch(setOffset(0));
   };
 
   const onPage = (p) => {
@@ -205,6 +211,39 @@ export default function ShopPage() {
   };
 
   const isLoading = fetchState === "FETCHING";
+
+  const findCategory = (id) => {
+    const list = Array.isArray(categories) ? categories : [];
+    return list.find((c) => String(c?.id) === String(id));
+  };
+
+  const buildProductUrl = (p) => {
+    const pid = pickProductId(p);
+    if (!pid) return null;
+
+    const cid = parsedCategoryId ?? pickCategoryId(p);
+    if (!cid) return `/product/${pid}`;
+
+    const cat = findCategory(cid) || p?.category || null;
+    const gender = toGenderSegment(cat?.gender);
+    const categoryName = slugifyTr(String(cat?.title || cat?.name || "category"));
+    const productNameSlug = slugifyTr(pickTitle(p));
+
+    return `/shop/${gender}/${categoryName}/${cid}/${productNameSlug}/${pid}`;
+  };
+
+  const onQuickAdd = (e, p) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch(addToCart(p));
+    window.dispatchEvent(new Event("cart:open"));
+  };
+
+  const onLike = (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch(toggleLike(id));
+  };
 
   return (
     <div className="w-full bg-white">
@@ -238,11 +277,11 @@ export default function ShopPage() {
       <Container className="flex flex-col pb-12">
         <div className="mt-8 grid w-full grid-cols-1 gap-4 lg:grid-cols-3 lg:items-center">
           <div className="text-center text-sm font-semibold text-[#737373] lg:text-left">
-            Showing total {total} results
+            Toplam {total} sonuç gösteriliyor
           </div>
 
           <div className="flex items-center justify-center gap-3 lg:justify-center lg:gap-4">
-            <div className="text-sm font-semibold text-[#737373]">Views:</div>
+            <div className="text-sm font-semibold text-[#737373]">Görünüm:</div>
 
             <button
               type="button"
@@ -267,8 +306,11 @@ export default function ShopPage() {
             <div className="w-full max-w-[220px]">
               <input
                 value={filter}
-                onChange={(e) => dispatch(setFilter(e.target.value))}
-                placeholder="filter"
+                onChange={(e) => {
+                  dispatch(setFilter(e.target.value));
+                  dispatch(setOffset(0));
+                }}
+                placeholder="Filtre"
                 className="h-10 w-full rounded border border-[#E6E6E6] bg-white px-4 text-sm text-[#737373] outline-none"
               />
             </div>
@@ -293,7 +335,7 @@ export default function ShopPage() {
               onClick={onApply}
               className="flex h-10 w-full max-w-[120px] items-center justify-center rounded bg-[#23A6F0] px-6 text-sm font-semibold text-white"
             >
-              Filter
+              Filtrele
             </button>
           </div>
         </div>
@@ -314,19 +356,21 @@ export default function ShopPage() {
           {!isLoading ? (
             <div className="grid w-full grid-cols-1 justify-items-center gap-[30px] sm:grid-cols-2 sm:justify-items-stretch sm:gap-x-8 sm:gap-y-12 lg:grid-cols-4">
               {productList.map((p) => {
-                const id = p?.id ?? p?.product_id ?? p?.productId;
+                const id = pickProductId(p);
                 const title = pickTitle(p);
                 const dept = pickDept(p);
                 const img = pickImage(p);
                 const price = formatMoney(pickPriceOld(p));
                 const sale = formatMoney(pickSale(p));
+                const url = buildProductUrl(p);
+                const liked = id != null && likedIds.includes(String(id));
 
                 return (
-                  <div key={id ?? title} className="w-[348px] sm:w-full">
+                  <div key={id ?? title} className="group relative w-[348px] sm:w-full">
                     <button
                       type="button"
-                      onClick={() => (id ? navigate(`/product/${id}`) : null)}
-                      className="w-full"
+                      onClick={() => (url ? navigate(url) : null)}
+                      className="w-full cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md"
                       aria-label={`Open product ${id ?? title}`}
                     >
                       <div className="sm:hidden">
@@ -337,6 +381,31 @@ export default function ShopPage() {
                         <ProductCard img={img} title={title} dept={dept} price={price} sale={sale} />
                       </div>
                     </button>
+
+                    <div className="pointer-events-none absolute inset-x-0 bottom-3 hidden px-3 sm:block">
+                      <div className="pointer-events-auto flex gap-2 opacity-0 transition-all group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={(e) => onQuickAdd(e, p)}
+                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded bg-[#252B42] text-sm font-bold text-white"
+                          aria-label="Hızlı sepete ekle"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                          Hızlı Sepete Ekle
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => (id != null ? onLike(e, id) : null)}
+                          className={`flex h-10 w-10 items-center justify-center rounded border ${
+                            liked ? "border-[#23A6F0] bg-[#23A6F0] text-white" : "border-[#E6E6E6] bg-white text-[#252B42]"
+                          }`}
+                          aria-label="Like"
+                        >
+                          <Heart className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -355,16 +424,16 @@ export default function ShopPage() {
               First
             </button>
 
-            {pageButtons.map((p) => (
+            {pageButtons.map((pnum) => (
               <button
-                key={p}
+                key={pnum}
                 type="button"
-                onClick={() => onPage(p)}
+                onClick={() => onPage(pnum)}
                 className={`flex h-full w-[46px] items-center justify-center text-sm font-bold ${
-                  currentPage === p ? "bg-[#23A6F0] text-white" : "bg-white text-[#23A6F0]"
+                  currentPage === pnum ? "bg-[#23A6F0] text-white" : "bg-white text-[#23A6F0]"
                 }`}
               >
-                {p}
+                {pnum}
               </button>
             ))}
 

@@ -23,22 +23,32 @@ export default function App() {
       <Routes>
         <Route element={<PageContent />}>
           <Route index element={<HomePage />} />
+
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/shop/:gender/:categoryName/:categoryId" element={<ShopPage />} />
+          <Route
+            path="/shop/:gender/:categoryName/:categoryId/:productNameSlug/:productId"
+            element={<ProductDetailPage />}
+          />
+
           <Route path="/product" element={<ShopPage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+
           <Route path="/about" element={<AboutPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/pages" element={<PagesPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
+
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/register" element={<Navigate to="/signup" replace />} />
           <Route path="/login" element={<LoginPage />} />
+
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

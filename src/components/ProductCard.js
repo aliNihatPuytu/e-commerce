@@ -21,9 +21,9 @@ export default function ProductCard({
   const saleText = sale;
 
   const Card = (
-    <div className="flex h-[488px] w-full flex-col items-center bg-white">
+    <div className="flex h-[488px] w-full cursor-pointer flex-col items-center bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="h-[300px] w-full bg-[#F6F6F6]">
-        <img src={imgSrc} alt={title} className="h-full w-full object-cover" />
+        {imgSrc ? <img src={imgSrc} alt={title} className="h-full w-full object-cover" /> : null}
       </div>
 
       <div className="flex w-full flex-1 flex-col items-center justify-center gap-2 pt-6 text-center">
