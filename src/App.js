@@ -14,6 +14,8 @@ import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
+import OrdersPage from "./pages/OrdersPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import TeamPage from "./pages/TeamPage";
 
@@ -48,6 +50,9 @@ export default function App() {
 
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/order-success" element={<OrderSuccessPage />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>

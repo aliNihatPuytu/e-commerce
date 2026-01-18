@@ -74,6 +74,15 @@ function fmt(n) {
   return `$${Number(n || 0).toFixed(2)}`;
 }
 
+function pickUserLabel(user) {
+  const u = user && typeof user === "object" ? user : {};
+  const name = String(u?.name || u?.full_name || u?.fullName || "").trim();
+  if (name) return name;
+  const email = String(u?.email || "").trim();
+  if (email) return email;
+  return "My Account";
+}
+
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,14 +91,17 @@ export default function Header() {
   const categories = useSelector((s) => s?.product?.categories) || [];
   const cart = useSelector((s) => s?.shoppingCart?.cart) || [];
   const likedIds = useSelector((s) => s?.product?.likedIds) || [];
+  const user = useSelector((s) => s?.client?.user) || {};
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [authed, setAuthed] = useState(isAuthed());
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const cartWrapRef = useRef(null);
   const cartTimerRef = useRef(null);
+  const accountWrapRef = useRef(null);
 
   const isShopPage = location.pathname.startsWith("/shop");
   const isContactPage = location.pathname === "/contact";
@@ -110,6 +122,7 @@ export default function Header() {
     setShopOpen(false);
     setMobileMenuOpen(false);
     setCartOpen(false);
+    setAccountOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -146,6 +159,20 @@ export default function Header() {
     return () => window.removeEventListener("mousedown", onDown);
   }, [cartOpen]);
 
+  useEffect(() => {
+    if (!accountOpen) return;
+
+    const onDown = (e) => {
+      const el = accountWrapRef.current;
+      if (!el) return;
+      if (el.contains(e.target)) return;
+      setAccountOpen(false);
+    };
+
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [accountOpen]);
+
   const { kadinCats, erkekCats } = useMemo(() => {
     const list = Array.isArray(categories) ? categories : [];
     const k = list.filter((c) => normalizeGender(c?.gender) === "k");
@@ -154,7 +181,7 @@ export default function Header() {
   }, [categories]);
 
   const accountHref = useMemo(() => (authed ? "/profile" : "/login"), [authed]);
-  const accountLabel = useMemo(() => (authed ? "My Account" : "Login / Register"), [authed]);
+  const accountLabel = useMemo(() => (authed ? pickUserLabel(user) : "Login / Register"), [authed, user]);
 
   const cartCount = useMemo(() => cart.reduce((sum, x) => sum + (Number(x.count) || 0), 0), [cart]);
   const wishCount = useMemo(() => likedIds.length, [likedIds]);
@@ -166,6 +193,7 @@ export default function Header() {
   const onLogout = () => {
     clearAuth();
     setAuthed(false);
+    setAccountOpen(false);
     showCenterNotice({ type: "info", title: "Signed out", subtitle: "", duration: 2400 });
     navigate("/", { replace: true });
   };
@@ -318,6 +346,42 @@ export default function Header() {
     </div>
   );
 
+  const AccountDropdown = (
+    <div className="absolute left-0 top-full z-50 mt-3 w-48 overflow-hidden rounded border border-[#E6E6E6] bg-white shadow-lg">
+      <button
+        type="button"
+        onClick={() => {
+          setAccountOpen(false);
+          navigate("/profile");
+        }}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-[#252B42] hover:bg-[#FAFAFA]"
+      >
+        Profile
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          setAccountOpen(false);
+          navigate("/orders");
+        }}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-[#252B42] hover:bg-[#FAFAFA]"
+      >
+        Previous Orders
+      </button>
+
+      <div className="border-t border-[#E6E6E6]" />
+
+      <button
+        type="button"
+        onClick={onLogout}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-[#23A6F0] hover:bg-[#FAFAFA]"
+      >
+        Logout
+      </button>
+    </div>
+  );
+
   if (isContactPage || isTeamPage) {
     return (
       <header className="w-full bg-white">
@@ -333,18 +397,29 @@ export default function Header() {
             </nav>
 
             <div className="flex items-center gap-6">
-              <Link to={accountHref} className="text-sm font-bold text-[#23A6F0]">{accountLabel}</Link>
-
-              {authed ? (
-                <button type="button" onClick={onLogout} className="inline-flex h-[52px] items-center rounded-[5px] border border-[#23A6F0] px-10 text-sm font-bold text-[#23A6F0]">
-                  Logout
-                </button>
+              {!authed ? (
+                <Link to={accountHref} className="text-sm font-bold text-[#23A6F0]">{accountLabel}</Link>
               ) : (
+                <div ref={accountWrapRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAccountOpen((v) => !v)}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-[#23A6F0]"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="max-w-48 truncate">{accountLabel}</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {accountOpen ? AccountDropdown : null}
+                </div>
+              )}
+
+              {!authed ? (
                 <Link to="/login" className="inline-flex h-[52px] items-center gap-2 rounded-[5px] bg-[#23A6F0] px-10 text-sm font-bold text-white">
                   Become a member
                   <ChevronRight className="h-4 w-4" />
                 </Link>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -377,8 +452,14 @@ export default function Header() {
                 <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className={isContactPage ? "text-[#252B42]" : "text-[#737373]"}>Contact</Link>
 
                 <Link to={accountHref} onClick={() => setMobileMenuOpen(false)} className="text-[#23A6F0]">
-                  {accountLabel}
+                  {authed ? pickUserLabel(user) : "Login / Register"}
                 </Link>
+
+                {authed ? (
+                  <Link to="/orders" onClick={() => setMobileMenuOpen(false)} className="text-[#23A6F0]">
+                    Previous Orders
+                  </Link>
+                ) : null}
 
                 {authed && (
                   <button type="button" onClick={() => { setMobileMenuOpen(false); onLogout(); }} className="text-[#23A6F0]">
@@ -466,15 +547,24 @@ export default function Header() {
             </nav>
 
             <div className="flex items-center gap-5 text-sm font-bold text-[#23A6F0]">
-              <Link to={accountHref} className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span>{accountLabel}</span>
-              </Link>
-
-              {authed && (
-                <button type="button" onClick={onLogout} className="text-sm font-bold text-[#23A6F0]">
-                  Logout
-                </button>
+              {!authed ? (
+                <Link to={accountHref} className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span>{accountLabel}</span>
+                </Link>
+              ) : (
+                <div ref={accountWrapRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAccountOpen((v) => !v)}
+                    className="flex items-center gap-2"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="max-w-48 truncate">{accountLabel}</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {accountOpen ? AccountDropdown : null}
+                </div>
               )}
 
               <button className="inline-flex items-center justify-center" type="button" onClick={() => navigate("/product")} aria-label="Search">
@@ -567,8 +657,14 @@ export default function Header() {
                 <Link to="/pages" onClick={() => setMobileMenuOpen(false)}>Pages</Link>
 
                 <Link to={accountHref} onClick={() => setMobileMenuOpen(false)} className="text-[#23A6F0]">
-                  {accountLabel}
+                  {authed ? pickUserLabel(user) : "Login / Register"}
                 </Link>
+
+                {authed ? (
+                  <Link to="/orders" onClick={() => setMobileMenuOpen(false)} className="text-[#23A6F0]">
+                    Previous Orders
+                  </Link>
+                ) : null}
 
                 {authed && (
                   <button

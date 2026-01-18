@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Heart,
   ShoppingCart,
@@ -49,36 +49,14 @@ import concreteIcon from "../assets/icons/concrete.png";
 import hackGrowthIcon from "../assets/icons/hack-growth.png";
 
 import ProductCard from "../components/ProductCard";
+import { ensureCategories, slugifyTr } from "../store/actions/productActions";
 
 const bestsellers = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10];
 const brands = [brand1, brand2, brand3, brand4, brand5, brand6];
 const bestsellerItems = bestsellers.map((img, i) => ({ id: 16 + i, img }));
 
-function slugify(value) {
-  const s = String(value ?? "").trim().toLowerCase();
-  if (!s) return "";
-  return s
-    .replaceAll("ğ", "g")
-    .replaceAll("ü", "u")
-    .replaceAll("ş", "s")
-    .replaceAll("ı", "i")
-    .replaceAll("ö", "o")
-    .replaceAll("ç", "c")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
 function pickCategoryList(state) {
-  const a = state?.categories || state?.category || state?.catalog || {};
-  const list =
-    a?.categories ||
-    a?.items ||
-    a?.list ||
-    a?.data ||
-    state?.categories?.items ||
-    state?.categories?.list ||
-    [];
+  const list = state?.product?.categories;
   return Array.isArray(list) ? list : [];
 }
 
@@ -87,11 +65,28 @@ function getCatId(cat) {
 }
 
 function getCatName(cat) {
-  return cat?.name ?? cat?.title ?? cat?.category_name ?? cat?.categoryName ?? "";
+  return cat?.title ?? cat?.name ?? cat?.category_name ?? cat?.categoryName ?? "";
 }
 
-function getCatGender(cat) {
-  return cat?.gender ?? cat?.gender_name ?? cat?.genderName ?? cat?.type ?? "";
+function normalizeGender(gender) {
+  const g = String(gender || "").trim().toLowerCase();
+  if (!g) return "";
+  if (g === "k" || g === "kadin" || g === "kadın" || g === "woman" || g === "women" || g === "female" || g === "f") return "k";
+  if (g === "e" || g === "erkek" || g === "man" || g === "men" || g === "male" || g === "m") return "e";
+  return "";
+}
+
+function toGenderSegment(gender) {
+  const ng = normalizeGender(gender);
+  if (ng === "k") return "kadin";
+  if (ng === "e") return "erkek";
+  return "kadin";
+}
+
+function toCategoryNameSegment(cat) {
+  const codePart = String(cat?.code || "").split(":")[1] || "";
+  const raw = codePart || String(getCatName(cat) || "");
+  return slugifyTr(raw) || "category";
 }
 
 function getCatRating(cat) {
@@ -120,10 +115,8 @@ function getCatImage(cat) {
 
 function buildShopCategoryPath(cat) {
   const id = getCatId(cat);
-  const name = getCatName(cat);
-  const gender = getCatGender(cat);
-  const genderSlug = slugify(gender) || "all";
-  const nameSlug = slugify(name) || "category";
+  const nameSlug = toCategoryNameSegment(cat);
+  const genderSlug = toGenderSegment(cat?.gender);
   return `/shop/${genderSlug}/${nameSlug}/${id}`;
 }
 
@@ -172,7 +165,12 @@ function CategoryCard({ cat, compact }) {
 }
 
 export default function HomePage() {
+  const dispatch = useDispatch();
   const categories = useSelector((s) => pickCategoryList(s));
+
+  useEffect(() => {
+    dispatch(ensureCategories());
+  }, [dispatch]);
 
   const topCategories = useMemo(() => {
     return [...categories]
@@ -193,9 +191,7 @@ export default function HomePage() {
               <div className="relative h-full w-full overflow-hidden rounded-[20px] bg-[linear-gradient(90deg,#96E9FB_0%,#ABECD6_100%)]">
                 <div className="relative z-10 flex h-full w-full items-center">
                   <div className="flex w-full flex-col justify-center px-6 md:max-w-[560px] md:px-0 md:pl-[120px]">
-                    <div className="text-base font-bold tracking-[0.1px] text-[#2A7CC7]">
-                      SUMMER 2020
-                    </div>
+                    <div className="text-base font-bold tracking-[0.1px] text-[#2A7CC7]">SUMMER 2020</div>
 
                     <h1 className="mt-4 text-[58px] font-bold leading-[80px] tracking-[0.2px] text-[#252B42] md:whitespace-nowrap">
                       NEW COLLECTION
@@ -236,15 +232,9 @@ export default function HomePage() {
           <Container>
             <div className="flex items-end justify-between gap-6">
               <div>
-                <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-                  Discover
-                </div>
-                <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
-                  TOP CATEGORIES
-                </div>
-                <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
-                  Top 5 categories by rating
-                </div>
+                <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Discover</div>
+                <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">TOP CATEGORIES</div>
+                <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Top 5 categories by rating</div>
               </div>
 
               <Link
@@ -262,7 +252,7 @@ export default function HomePage() {
                 ))
               ) : (
                 <div className="col-span-5 rounded-2xl border border-[#E6E6E6] bg-white p-6 text-sm text-[#737373]">
-                  Categories yüklenmedi. /categories thunk store’a yazınca burada otomatik görünecek.
+                  Categories yüklenemedi.
                 </div>
               )}
             </div>
@@ -275,22 +265,8 @@ export default function HomePage() {
               <div className="flex w-full flex-col gap-[30px] md:flex-row">
                 <TopWeekLarge img={top1} to="/product/13" />
                 <div className="flex w-full flex-col gap-[22px] md:w-[557px]">
-                  <TopWeekSmall
-                    img={top2}
-                    h={289}
-                    w={557}
-                    overlayW={347}
-                    overlayH={173}
-                    to="/product/14"
-                  />
-                  <TopWeekSmall
-                    img={top3}
-                    h={261}
-                    w={557}
-                    overlayW={360}
-                    overlayH={153}
-                    to="/product/15"
-                  />
+                  <TopWeekSmall img={top2} h={289} w={557} overlayW={347} overlayH={173} to="/product/14" />
+                  <TopWeekSmall img={top3} h={261} w={557} overlayW={360} overlayH={153} to="/product/15" />
                 </div>
               </div>
             </div>
@@ -300,15 +276,9 @@ export default function HomePage() {
         <div className="w-full py-14">
           <Container>
             <div className="text-center">
-              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-                Featured Products
-              </div>
-              <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
-                BESTSELLER PRODUCTS
-              </div>
-              <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
-                Problems trying to resolve the conflict between
-              </div>
+              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
+              <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">BESTSELLER PRODUCTS</div>
+              <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Problems trying to resolve the conflict between</div>
             </div>
 
             <div className="mt-10 flex flex-wrap justify-between gap-y-12">
@@ -322,12 +292,8 @@ export default function HomePage() {
                     <img src={p.img} alt="" className="h-full w-full object-cover" />
                   </div>
 
-                  <div className="mt-6 text-sm font-bold tracking-[0.2px] text-[#252B42]">
-                    Graphic Design
-                  </div>
-                  <div className="mt-2 text-sm font-bold tracking-[0.2px] text-[#737373]">
-                    English Department
-                  </div>
+                  <div className="mt-6 text-sm font-bold tracking-[0.2px] text-[#252B42]">Graphic Design</div>
+                  <div className="mt-2 text-sm font-bold tracking-[0.2px] text-[#737373]">English Department</div>
 
                   <div className="mt-2 flex items-center gap-2 text-sm font-bold">
                     <span className="text-[#BDBDBD]">$16.48</span>
@@ -368,21 +334,15 @@ export default function HomePage() {
               </div>
 
               <div className="w-full max-w-[447px]">
-                <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-                  Featured Products
-                </div>
-                <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">
-                  We love what we do
-                </div>
+                <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
+                <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">We love what we do</div>
 
                 <p className="mt-6 max-w-[320px] text-sm leading-5 tracking-[0.2px] text-[#737373]">
-                  Problems trying to resolve the conflict between the two major realms of
-                  Classical physics: Newtonian mechanics
+                  Problems trying to resolve the conflict between the two major realms of Classical physics: Newtonian mechanics
                 </p>
 
                 <p className="mt-6 max-w-[320px] text-sm leading-5 tracking-[0.2px] text-[#737373]">
-                  Problems trying to resolve the conflict between the two major realms of
-                  Classical physics: Newtonian mechanics
+                  Problems trying to resolve the conflict between the two major realms of Classical physics: Newtonian mechanics
                 </p>
               </div>
             </div>
@@ -392,33 +352,19 @@ export default function HomePage() {
         <div className="w-full py-20">
           <Container>
             <div className="text-center">
-              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-                Featured Products
-              </div>
-              <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
-                THE BEST SERVICES
-              </div>
-              <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
-                Problems trying to resolve the conflict between
-              </div>
+              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
+              <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">THE BEST SERVICES</div>
+              <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Problems trying to resolve the conflict between</div>
             </div>
 
             <div className="mt-16 flex flex-col items-center gap-12 md:flex-row md:items-start md:justify-between">
-              <ServiceItem
-                icon={easyWinsIcon}
-                title="Easy Wins"
-                text="Get your best looking smile now!"
-              />
+              <ServiceItem icon={easyWinsIcon} title="Easy Wins" text="Get your best looking smile now!" />
               <ServiceItem
                 icon={concreteIcon}
                 title="Concrete"
                 text="Defalcate is most focused in helping you discover your most beautiful smile"
               />
-              <ServiceItem
-                icon={hackGrowthIcon}
-                title="Hack Growth"
-                text="Overcame any hurdle or any other problem."
-              />
+              <ServiceItem icon={hackGrowthIcon} title="Hack Growth" text="Overcame any hurdle or any other problem." />
             </div>
           </Container>
         </div>
@@ -426,12 +372,8 @@ export default function HomePage() {
         <div className="w-full py-20">
           <Container>
             <div className="text-center">
-              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-                Practice Advice
-              </div>
-              <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">
-                Featured Posts
-              </div>
+              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Practice Advice</div>
+              <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">Featured Posts</div>
             </div>
 
             <div className="mt-16 flex flex-col items-center gap-8 md:flex-row md:justify-center md:gap-20">
@@ -452,9 +394,7 @@ function MobileHome({ topCategories }) {
         <div className="mx-auto w-full max-w-[414px] px-4">
           <div className="mx-auto flex h-[902px] w-full max-w-[388px] flex-col items-center gap-[66px] overflow-hidden rounded-[20px] bg-[linear-gradient(90deg,#96E9FB_0%,#ABECD6_100%)] pt-20">
             <div className="flex w-full flex-col items-center gap-8 px-6 text-center">
-              <div className="text-base font-bold tracking-[0.1px] text-[#2A7CC7]">
-                SUMMER 2020
-              </div>
+              <div className="text-base font-bold tracking-[0.1px] text-[#2A7CC7]">SUMMER 2020</div>
 
               <div className="w-[268px] text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">
                 NEW
@@ -521,7 +461,7 @@ function MobileHome({ topCategories }) {
               ))
             ) : (
               <div className="w-full rounded-2xl border border-[#E6E6E6] bg-white p-4 text-sm text-[#737373]">
-                Categories yüklenmedi. /categories thunk store’a yazınca burada otomatik görünecek.
+                Categories yüklenemedi.
               </div>
             )}
           </div>
@@ -541,27 +481,15 @@ function MobileHome({ topCategories }) {
       <div className="w-full pt-10">
         <div className="mx-auto w-full max-w-[414px]">
           <div className="text-center">
-            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-              Featured Products
-            </div>
-            <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
-              BESTSELLER PRODUCTS
-            </div>
-            <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
-              Problems trying to resolve the conflict between
-            </div>
+            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
+            <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">BESTSELLER PRODUCTS</div>
+            <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Problems trying to resolve the conflict between</div>
           </div>
 
           <div className="mt-10 flex flex-col gap-10 pb-8">
             {bestsellerItems.map((p) => (
               <Link key={p.id} to={`/product/${p.id}`} className="mx-auto w-[238px]">
-                <ProductCard
-                  img={p.img}
-                  title="Graphic Design"
-                  dept="English Department"
-                  price="$16.48"
-                  sale="$6.48"
-                />
+                <ProductCard img={p.img} title="Graphic Design" dept="English Department" price="$16.48" sale="$6.48" />
               </Link>
             ))}
           </div>
@@ -580,9 +508,7 @@ function MobileHome({ topCategories }) {
       <div className="w-full py-20">
         <div className="mx-auto w-full max-w-[414px] px-4">
           <div className="flex w-full flex-col items-center text-center">
-            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-              Featured Products
-            </div>
+            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
 
             <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">
               We love
@@ -591,13 +517,11 @@ function MobileHome({ topCategories }) {
             </div>
 
             <div className="mt-6 max-w-[320px] text-sm leading-5 tracking-[0.2px] text-[#737373]">
-              Problems trying to resolve the conflict between the two major realms of Classical
-              physics: Newtonian mechanics
+              Problems trying to resolve the conflict between the two major realms of Classical physics: Newtonian mechanics
             </div>
 
             <div className="mt-6 max-w-[320px] text-sm leading-5 tracking-[0.2px] text-[#737373]">
-              Problems trying to resolve the conflict between the two major realms of Classical
-              physics: Newtonian mechanics
+              Problems trying to resolve the conflict between the two major realms of Classical physics: Newtonian mechanics
             </div>
           </div>
         </div>
@@ -617,33 +541,19 @@ function MobileHome({ topCategories }) {
       <div className="w-full pb-16">
         <div className="mx-auto w-full max-w-[414px]">
           <div className="text-center">
-            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-              Featured Products
-            </div>
-            <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
-              THE BEST SERVICES
-            </div>
-            <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
-              Problems trying to resolve the conflict between
-            </div>
+            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Featured Products</div>
+            <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">THE BEST SERVICES</div>
+            <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Problems trying to resolve the conflict between</div>
           </div>
 
           <div className="mt-14 flex flex-col items-center gap-16">
-            <ServiceItem
-              icon={easyWinsIcon}
-              title="Easy Wins"
-              text="Get your best looking smile now!"
-            />
+            <ServiceItem icon={easyWinsIcon} title="Easy Wins" text="Get your best looking smile now!" />
             <ServiceItem
               icon={concreteIcon}
               title="Concrete"
               text="Defalcate is most focused in helping you discover your most beautiful smile"
             />
-            <ServiceItem
-              icon={hackGrowthIcon}
-              title="Hack Growth"
-              text="Overcame any hurdle or any other problem."
-            />
+            <ServiceItem icon={hackGrowthIcon} title="Hack Growth" text="Overcame any hurdle or any other problem." />
           </div>
         </div>
       </div>
@@ -651,12 +561,8 @@ function MobileHome({ topCategories }) {
       <div className="w-full pb-16">
         <div className="mx-auto w-full max-w-[414px]">
           <div className="text-center">
-            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
-              Practice Advice
-            </div>
-            <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">
-              Featured Posts
-            </div>
+            <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Practice Advice</div>
+            <div className="mt-2 text-[40px] font-bold leading-[50px] tracking-[0.2px] text-[#252B42]">Featured Posts</div>
           </div>
 
           <div className="mt-14 mx-auto flex w-[329px] flex-col gap-8">
@@ -677,9 +583,7 @@ function MobileTopCard({ img, h, to }) {
       <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
 
       <div className="absolute bottom-0 left-0 h-[238px] w-[346px] bg-[rgba(45,139,192,0.75)] px-8 py-10">
-        <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">
-          Top Product Of the Week
-        </div>
+        <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">Top Product Of the Week</div>
         <Link
           to={to}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-[5px] border border-white px-6 text-sm font-bold tracking-[0.2px] text-white"
@@ -697,9 +601,7 @@ function TopWeekLarge({ img, to }) {
       <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
 
       <div className="absolute bottom-0 left-0 h-[238px] w-[420px] bg-[rgba(45,139,192,0.75)] px-8 py-10">
-        <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">
-          Top Product Of the Week
-        </div>
+        <div className="max-w-[240px] text-2xl font-bold leading-8 tracking-[0.1px] text-white">Top Product Of the Week</div>
         <Link
           to={to}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-[5px] border border-white px-6 text-sm font-bold tracking-[0.2px] text-white"
@@ -752,9 +654,7 @@ function PostCard({ img }) {
       <div className="relative w-[209px] flex-shrink-0">
         <img src={img} alt="" className="h-full w-full object-cover" />
 
-        <span className="absolute left-5 top-5 rounded bg-[#E74040] px-3 py-1 text-xs font-bold text-white">
-          Sale
-        </span>
+        <span className="absolute left-5 top-5 rounded bg-[#E74040] px-3 py-1 text-xs font-bold text-white">Sale</span>
 
         <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]">
@@ -833,9 +733,7 @@ function MobilePostCard({ img }) {
     <div className="w-[328px] overflow-hidden rounded-[5px] bg-white shadow-[0px_2px_4px_rgba(0,0,0,0.1)]">
       <div className="relative h-[300px] w-full">
         <img src={img} alt="" className="h-full w-full object-cover" />
-        <span className="absolute left-5 top-5 rounded bg-[#E74040] px-3 py-1 text-xs font-bold text-white">
-          Sale
-        </span>
+        <span className="absolute left-5 top-5 rounded bg-[#E74040] px-3 py-1 text-xs font-bold text-white">Sale</span>
 
         <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0px_2px_8px_rgba(0,0,0,0.12)]" aria-label="Like">
