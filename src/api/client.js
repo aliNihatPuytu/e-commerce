@@ -9,20 +9,10 @@ const client = axios.create({
   },
 });
 
-export function setClientAuthToken(token) {
-  if (!token) return;
-  client.defaults.headers.common.Authorization = token;
-}
-
-export function clearClientAuthToken() {
-  delete client.defaults.headers.common.Authorization;
-}
-
 client.interceptors.request.use((config) => {
   const token = getToken();
-  const headers = config.headers || (config.headers = {});
-  const hasAuth = Boolean(headers.Authorization || headers.authorization);
-  if (!hasAuth && token) headers.Authorization = token;
+  if (token) config.headers.Authorization = token;
+  else if (config?.headers?.Authorization) delete config.headers.Authorization;
   return config;
 });
 

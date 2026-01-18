@@ -1,22 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Info, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, Info, X, ArrowRight } from "lucide-react";
 
 const ICONS = {
   success: CheckCircle2,
   info: Info,
 };
 
-const STRIPE = {
-  success: "bg-[#23A6F0]",
-  info: "bg-[#737373]",
-};
-
-const ICON_COLOR = {
-  success: "text-[#23A6F0]",
-  info: "text-[#737373]",
-};
+function pickType(t) {
+  return t === "success" || t === "info" ? t : "info";
+}
 
 export default function CenterNoticeHost() {
+  const navigate = useNavigate();
   const [notice, setNotice] = useState(null);
   const [open, setOpen] = useState(false);
   const timers = useRef({ close: null, clear: null });
@@ -27,8 +23,10 @@ export default function CenterNoticeHost() {
       const next = {
         title: String(d.title || ""),
         subtitle: String(d.subtitle || ""),
-        type: d.type || "info",
-        duration: Number(d.duration) || 2200,
+        type: pickType(d.type),
+        duration: Number(d.duration) || 2400,
+        actionLabel: String(d.actionLabel || ""),
+        actionHref: String(d.actionHref || ""),
       };
 
       if (timers.current.close) clearTimeout(timers.current.close);
@@ -38,7 +36,7 @@ export default function CenterNoticeHost() {
       requestAnimationFrame(() => setOpen(true));
 
       timers.current.close = setTimeout(() => setOpen(false), next.duration);
-      timers.current.clear = setTimeout(() => setNotice(null), next.duration + 220);
+      timers.current.clear = setTimeout(() => setNotice(null), next.duration + 260);
     };
 
     window.addEventListener("center-notice", onShow);
@@ -52,56 +50,86 @@ export default function CenterNoticeHost() {
   if (!notice) return null;
 
   const Icon = ICONS[notice.type] || ICONS.info;
-  const stripe = STRIPE[notice.type] || STRIPE.info;
-  const iconColor = ICON_COLOR[notice.type] || ICON_COLOR.info;
+
+  const onPrimary = () => {
+    setOpen(false);
+    if (notice.actionHref) navigate(notice.actionHref);
+  };
+
+  const buttonLabel = notice.actionLabel || "Continue";
 
   return (
     <div
       className={[
         "fixed inset-0 z-[9999] flex items-center justify-center px-4",
-        "transition-opacity duration-200",
+        "transition-opacity duration-300",
         open ? "opacity-100" : "pointer-events-none opacity-0",
       ].join(" ")}
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
     >
-      <div className="absolute inset-0 bg-black/25" onClick={() => setOpen(false)} />
+      <div
+        className={[
+          "absolute inset-0 bg-black/50",
+          "backdrop-blur-[2px]",
+        ].join(" ")}
+        onClick={() => setOpen(false)}
+      />
 
       <div
         className={[
-          "relative w-full max-w-md",
-          "transition-all duration-200 ease-out",
-          open ? "translate-y-0 scale-100" : "-translate-y-2 scale-[0.99]",
+          "relative w-full max-w-[560px]",
+          "transition-all duration-300 ease-out",
+          open ? "translate-y-0 scale-100" : "translate-y-3 scale-[0.96]",
         ].join(" ")}
       >
-        <div className="overflow-hidden rounded-md border border-[#E6E6E6] bg-white shadow-lg">
-          <div className="relative">
-            <div className={["absolute left-0 top-0 h-full w-1.5", stripe].join(" ")} />
+        <div className="relative overflow-hidden rounded-2xl bg-[#252B42] shadow-2xl">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/70 hover:bg-white/10"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-            <div className="flex items-start gap-3 p-4 pl-5">
-              <div className={["mt-0.5", iconColor].join(" ")}>
-                <Icon className="h-5 w-5" />
+          <div className="p-10">
+            <div className="flex items-start gap-5">
+              <div className="rounded-2xl bg-gradient-to-br from-[#23A6F0] to-[#B728FF] p-4">
+                <Icon className="h-7 w-7 text-white" />
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-bold leading-5 text-[#252B42]">{notice.title}</div>
+                <div className="text-[32px] font-bold leading-[38px] text-white">{notice.title}</div>
+                <div className="mt-4 h-1 w-16 rounded-full bg-[#E74040]" />
 
                 {notice.subtitle ? (
-                  <div className="mt-1 text-[13px] leading-5 text-[#737373]">{notice.subtitle}</div>
+                  <div className="mt-5 text-[15px] leading-6 text-white/80">
+                    {notice.subtitle}
+                  </div>
                 ) : null}
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#737373] hover:bg-[#F6F6F6]"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                <div className="mt-7">
+                  <button
+                    type="button"
+                    onClick={onPrimary}
+                    className={[
+                      "inline-flex items-center gap-2 rounded-full",
+                      "border border-[#23A6F0] px-6 py-3",
+                      "text-sm font-bold text-[#23A6F0]",
+                      "hover:bg-[#23A6F0]/10",
+                    ].join(" ")}
+                  >
+                    {buttonLabel}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
+          <div className="h-1 w-full bg-gradient-to-r from-[#23A6F0] via-[#B728FF] to-[#23A6F0]" />
         </div>
       </div>
     </div>

@@ -1,27 +1,11 @@
 const TOKEN_KEY = "wt_token";
+const SESSION_TOKEN_KEY = "wt_token_session";
 const USER_KEY = "wt_user";
 const BYPASS_KEY = "wt_bypass";
-
-let SESSION_TOKEN = "";
-
-export function getStoredToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
+const REMEMBER_KEY = "wt_remember";
 
 export function getToken() {
-  return getStoredToken() || SESSION_TOKEN || "";
-}
-
-export function setSessionToken(token) {
-  SESSION_TOKEN = String(token || "");
-}
-
-export function setStoredToken(token) {
-  localStorage.setItem(TOKEN_KEY, String(token || ""));
-}
-
-export function clearStoredToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  return sessionStorage.getItem(SESSION_TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || "";
 }
 
 export function getUser() {
@@ -33,16 +17,53 @@ export function getUser() {
   }
 }
 
-export function setStoredUser(user) {
-  localStorage.setItem(USER_KEY, JSON.stringify(user || {}));
-}
-
-export function clearStoredUser() {
-  localStorage.removeItem(USER_KEY);
-}
-
 export function isAuthed() {
   return Boolean(getToken() || localStorage.getItem(BYPASS_KEY));
+}
+
+export function setAuth(payload, remember = false) {
+  const token =
+    payload?.token ||
+    payload?.access_token ||
+    payload?.accessToken ||
+    payload?.jwt ||
+    payload?.data?.token ||
+    payload?.data?.access_token;
+
+  if (token) {
+    const t = String(token);
+    if (remember) {
+      localStorage.setItem(TOKEN_KEY, t);
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      localStorage.setItem(REMEMBER_KEY, "1");
+    } else {
+      sessionStorage.setItem(SESSION_TOKEN_KEY, t);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REMEMBER_KEY);
+    }
+  }
+
+  localStorage.setItem(USER_KEY, JSON.stringify(payload || {}));
+  localStorage.removeItem(BYPASS_KEY);
+  window.dispatchEvent(new Event("auth"));
+}
+
+export function setRememberedToken(token) {
+  const t = String(token || "");
+  if (!t) return;
+  localStorage.setItem(TOKEN_KEY, t);
+  localStorage.setItem(REMEMBER_KEY, "1");
+  sessionStorage.removeItem(SESSION_TOKEN_KEY);
+  window.dispatchEvent(new Event("auth"));
+}
+
+export function clearRememberedToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REMEMBER_KEY);
+}
+
+export function hasRememberedToken() {
+  return Boolean(localStorage.getItem(TOKEN_KEY));
 }
 
 export function setBypass(email) {
@@ -60,9 +81,10 @@ export function getBypass() {
 }
 
 export function clearAuth() {
-  clearStoredToken();
-  clearStoredUser();
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
   localStorage.removeItem(BYPASS_KEY);
-  setSessionToken("");
+  localStorage.removeItem(REMEMBER_KEY);
+  sessionStorage.removeItem(SESSION_TOKEN_KEY);
   window.dispatchEvent(new Event("auth"));
 }

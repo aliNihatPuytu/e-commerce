@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   Heart,
   ShoppingCart,
@@ -52,11 +54,136 @@ const bestsellers = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10];
 const brands = [brand1, brand2, brand3, brand4, brand5, brand6];
 const bestsellerItems = bestsellers.map((img, i) => ({ id: 16 + i, img }));
 
+function slugify(value) {
+  const s = String(value ?? "").trim().toLowerCase();
+  if (!s) return "";
+  return s
+    .replaceAll("ğ", "g")
+    .replaceAll("ü", "u")
+    .replaceAll("ş", "s")
+    .replaceAll("ı", "i")
+    .replaceAll("ö", "o")
+    .replaceAll("ç", "c")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function pickCategoryList(state) {
+  const a = state?.categories || state?.category || state?.catalog || {};
+  const list =
+    a?.categories ||
+    a?.items ||
+    a?.list ||
+    a?.data ||
+    state?.categories?.items ||
+    state?.categories?.list ||
+    [];
+  return Array.isArray(list) ? list : [];
+}
+
+function getCatId(cat) {
+  return cat?.id ?? cat?.category_id ?? cat?.categoryId ?? cat?._id ?? "";
+}
+
+function getCatName(cat) {
+  return cat?.name ?? cat?.title ?? cat?.category_name ?? cat?.categoryName ?? "";
+}
+
+function getCatGender(cat) {
+  return cat?.gender ?? cat?.gender_name ?? cat?.genderName ?? cat?.type ?? "";
+}
+
+function getCatRating(cat) {
+  const v =
+    cat?.rating ??
+    cat?.avg_rating ??
+    cat?.average_rating ??
+    cat?.score ??
+    cat?.popularity ??
+    0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getCatImage(cat) {
+  return (
+    cat?.image ||
+    cat?.img ||
+    cat?.imageUrl ||
+    cat?.image_url ||
+    cat?.cover ||
+    cat?.coverUrl ||
+    ""
+  );
+}
+
+function buildShopCategoryPath(cat) {
+  const id = getCatId(cat);
+  const name = getCatName(cat);
+  const gender = getCatGender(cat);
+  const genderSlug = slugify(gender) || "all";
+  const nameSlug = slugify(name) || "category";
+  return `/shop/${genderSlug}/${nameSlug}/${id}`;
+}
+
+function CategoryCard({ cat, compact }) {
+  const name = getCatName(cat);
+  const img = getCatImage(cat);
+  const rating = getCatRating(cat);
+  const to = buildShopCategoryPath(cat);
+
+  return (
+    <Link
+      to={to}
+      className={`group relative w-full overflow-hidden rounded-2xl bg-[#0B1220] shadow-[0px_12px_30px_rgba(0,0,0,0.15)] ${
+        compact ? "h-24" : "h-40"
+      }`}
+    >
+      {img ? (
+        <img
+          src={img}
+          alt={name}
+          className="absolute inset-0 h-full w-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-[1.03]"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#0B1220_0%,#14203A_60%,#0B1220_100%)]" />
+      )}
+
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.10)_0%,rgba(0,0,0,0.72)_100%)]" />
+
+      <div className="relative flex h-full w-full flex-col justify-end p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold tracking-[0.2px] text-white">{name || "Category"}</div>
+            <div className="mt-1 flex items-center gap-1 text-xs font-bold text-white/80">
+              <Star className="h-3.5 w-3.5 text-[#FFCE31]" />
+              <span>{rating.toFixed(1)}</span>
+            </div>
+          </div>
+
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-200 group-hover:bg-white/20">
+            <ChevronRight className="h-4 w-4" />
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function HomePage() {
+  const categories = useSelector((s) => pickCategoryList(s));
+
+  const topCategories = useMemo(() => {
+    return [...categories]
+      .sort((a, b) => getCatRating(b) - getCatRating(a))
+      .slice(0, 5);
+  }, [categories]);
+
   return (
     <div className="w-full bg-white">
       <div className="md:hidden">
-        <MobileHome />
+        <MobileHome topCategories={topCategories} />
       </div>
 
       <div className="hidden md:block">
@@ -103,6 +230,43 @@ export default function HomePage() {
               <img key={i} src={x} alt="" className="h-10 w-auto opacity-60" />
             ))}
           </div>
+        </div>
+
+        <div className="w-full py-12">
+          <Container>
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">
+                  Discover
+                </div>
+                <div className="mt-2 text-2xl font-bold tracking-[0.2px] text-[#252B42]">
+                  TOP CATEGORIES
+                </div>
+                <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">
+                  Top 5 categories by rating
+                </div>
+              </div>
+
+              <Link
+                to="/shop"
+                className="hidden h-11 items-center justify-center rounded-full border border-[#23A6F0] px-6 text-sm font-bold tracking-[0.2px] text-[#23A6F0] md:inline-flex"
+              >
+                View all
+              </Link>
+            </div>
+
+            <div className="mt-8 grid grid-cols-5 gap-5">
+              {topCategories.length ? (
+                topCategories.map((cat) => (
+                  <CategoryCard key={String(getCatId(cat) || getCatName(cat))} cat={cat} />
+                ))
+              ) : (
+                <div className="col-span-5 rounded-2xl border border-[#E6E6E6] bg-white p-6 text-sm text-[#737373]">
+                  Categories yüklenmedi. /categories thunk store’a yazınca burada otomatik görünecek.
+                </div>
+              )}
+            </div>
+          </Container>
         </div>
 
         <div className="w-full py-10 md:h-[732px] md:py-20">
@@ -281,7 +445,7 @@ export default function HomePage() {
   );
 }
 
-function MobileHome() {
+function MobileHome({ topCategories }) {
   return (
     <div className="flex w-full flex-col items-center overflow-x-hidden bg-white">
       <div className="w-full pt-4">
@@ -327,6 +491,39 @@ function MobileHome() {
             {brands.map((src, i) => (
               <img key={i} src={src} alt="" className="h-10 w-auto object-contain opacity-70" />
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full pb-6">
+        <div className="mx-auto w-full max-w-[414px] px-4">
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="text-sm font-bold tracking-[0.2px] text-[#23A6F0]">Discover</div>
+              <div className="mt-2 text-xl font-bold tracking-[0.2px] text-[#252B42]">TOP CATEGORIES</div>
+              <div className="mt-2 text-sm tracking-[0.2px] text-[#737373]">Top 5 categories by rating</div>
+            </div>
+
+            <Link
+              to="/shop"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#23A6F0] px-5 text-sm font-bold tracking-[0.2px] text-[#23A6F0]"
+            >
+              All
+            </Link>
+          </div>
+
+          <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+            {topCategories?.length ? (
+              topCategories.map((cat) => (
+                <div key={String(getCatId(cat) || getCatName(cat))} className="w-64 flex-none">
+                  <CategoryCard cat={cat} compact />
+                </div>
+              ))
+            ) : (
+              <div className="w-full rounded-2xl border border-[#E6E6E6] bg-white p-4 text-sm text-[#737373]">
+                Categories yüklenmedi. /categories thunk store’a yazınca burada otomatik görünecek.
+              </div>
+            )}
           </div>
         </div>
       </div>

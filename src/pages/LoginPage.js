@@ -1,59 +1,79 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { loginUser } from "../api/api";
+import { setAuth, setBypass } from "../auth/auth";
 import { showCenterNotice } from "../utils/centerNotice";
-import { loginThunk } from "../store/actions/authThunks";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isNotActivated(res) {
+  const msg = String(res?.message || "").toLowerCase();
+  return res?.status === 401 && msg.includes("not activated");
+}
+
 export default function LoginPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [serverMsg, setServerMsg] = useState("");
 
-  const from = location.state?.from?.pathname || "/";
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setError,
-  } = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-      rememberMe: false,
-    },
-    mode: "onSubmit",
-  });
+    setServerMsg("");
 
-  const onSubmit = async (values) => {
-    const email = String(values.email || "").trim();
-    const password = String(values.password || "");
-    const rememberMe = Boolean(values.rememberMe);
-
-    const result = await dispatch(loginThunk({ email, password, rememberMe }));
-
-    if (result?.ok) {
-      showCenterNotice({ type: "success", title: "Signed in", subtitle: "", duration: 2200 });
-      navigate(from, { replace: true });
+    const eTrim = email.trim();
+    if (!emailRe.test(eTrim)) {
+      setServerMsg("Invalid email");
+      return;
+    }
+    if (!password) {
+      setServerMsg("Password is required");
       return;
     }
 
-    if (result?.notActivated) {
+    setLoading(true);
+    const res = await loginUser({ email: eTrim, password });
+    setLoading(false);
+
+    if (res.ok) {
+      setAuth(res.data);
+
       showCenterNotice({
-        type: "info",
-        title: "Account not activated",
-        subtitle: "(Please check your email to activate.)",
+        type: "success",
+        title: "Signed in",
+        subtitle: "",
         duration: 2600,
+        actionLabel: "Go to your account",
+        actionHref: "/profile",
       });
-      toast.warning(result.message || "Account not activated");
+
+      navigate("/profile", { replace: true });
       return;
     }
 
-    toast.error(result?.message || "Unauthorized");
-    setError("password", { type: "server", message: result?.message || "Unauthorized" });
+    if (isNotActivated(res)) {
+      setBypass(eTrim);
+
+      showCenterNotice({
+        type: "success",
+        title: "Signed in",
+        subtitle: "(Account not activated. Please check your email to activate.)",
+        duration: 3200,
+        actionLabel: "Go to your account",
+        actionHref: "/profile",
+      });
+
+      toast.warning("You need to click link in email to activate your account!");
+      navigate("/profile", { replace: true });
+      return;
+    }
+
+    setServerMsg(res.message || "Unauthorized");
+    toast.error(res.message || "Unauthorized");
   };
 
   return (
@@ -67,18 +87,15 @@ export default function LoginPage() {
           <h1 className="text-[28px] font-semibold leading-8 text-[#252B42]">Sign in</h1>
           <div className="mt-1 text-sm font-medium text-[#737373]">Welcome back</div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex flex-col gap-4">
+          <form onSubmit={onSubmit} className="mt-5 flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-[#252B42]">Email</label>
               <input
                 className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
                 placeholder="you@example.com"
-                {...register("email", {
-                  required: "Email is required",
-                  pattern: { value: emailRe, message: "Invalid email" },
-                })}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
-              {errors.email?.message ? <div className="text-xs font-medium text-red-600">{errors.email.message}</div> : null}
             </div>
 
             <div className="flex flex-col gap-1">
@@ -86,28 +103,17 @@ export default function LoginPage() {
               <input
                 type="password"
                 className="h-11 rounded border border-[#E6E6E6] px-3 text-sm outline-none focus:border-[#23A6F0]"
-                {...register("password", { required: "Password is required" })}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
-              {errors.password?.message ? (
-                <div className="text-xs font-medium text-red-600">{errors.password.message}</div>
-              ) : null}
             </div>
-
-            <label className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-[#737373]">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-[#23A6F0]"
-                {...register("rememberMe")}
-              />
-              Remember me
-            </label>
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={loading}
               className="inline-flex h-11 w-full items-center justify-center rounded bg-[#23A6F0] text-sm font-bold text-white disabled:opacity-60"
             >
-              {isSubmitting ? (
+              {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
                   Signing in...
@@ -116,6 +122,8 @@ export default function LoginPage() {
                 "Sign in"
               )}
             </button>
+
+            {serverMsg && <div className="text-xs font-medium text-red-600">{serverMsg}</div>}
           </form>
         </div>
 

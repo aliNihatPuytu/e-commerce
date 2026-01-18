@@ -17,8 +17,6 @@ import CheckoutPage from "./pages/CheckoutPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import TeamPage from "./pages/TeamPage";
 
-import RequireAuth from "./routes/RequireAuth";
-
 export default function App() {
   return (
     <div className="min-h-screen w-full bg-white text-[#252B42]">
@@ -26,6 +24,7 @@ export default function App() {
         <Route element={<PageContent />}>
           <Route index element={<HomePage />} />
           <Route path="/shop" element={<ShopPage />} />
+          <Route path="/shop/:gender/:categoryName/:categoryId" element={<ShopPage />} />
           <Route path="/product" element={<ShopPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/blog" element={<BlogPage />} />
@@ -34,18 +33,12 @@ export default function App() {
           <Route path="/team" element={<TeamPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/product/:id" element={<ProductDetailPage />} />
-
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/register" element={<Navigate to="/signup" replace />} />
           <Route path="/login" element={<LoginPage />} />
-
           <Route path="/cart" element={<CartPage />} />
-
-          <Route element={<RequireAuth />}>
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-          </Route>
-
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
